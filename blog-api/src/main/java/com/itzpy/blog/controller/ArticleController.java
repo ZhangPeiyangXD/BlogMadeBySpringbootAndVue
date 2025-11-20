@@ -29,4 +29,12 @@ public class ArticleController {
 
         return articleService.listArticle(pageParams);
     }
+
+
+    @PostMapping("/hot")
+    public Result hotArticle() {
+        log.info("查询最热文章:");
+
+        return articleService.hot(ArticleService.HOT_ARTICLE_NUM);
+    }
 }

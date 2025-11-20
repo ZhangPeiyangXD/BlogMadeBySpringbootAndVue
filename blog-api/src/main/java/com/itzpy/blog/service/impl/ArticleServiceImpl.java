@@ -27,6 +27,7 @@ public class ArticleServiceImpl implements ArticleService {
     @Autowired
     private SysUserService sysUserService;
 
+
     /**
      * 分页查询文章列表
      *
@@ -46,6 +47,21 @@ public class ArticleServiceImpl implements ArticleService {
         List<ArticleVo> articleVos = copyList(articlePage.getRecords(), true, true);
 
         return Result.success(articleVos);
+    }
+
+
+    /**
+     * 查询最热文章
+     * @param hotArticleNum 最热的文章数量
+     * @return result(最热文章列表)
+     */
+    @Override
+    public Result hot(int hotArticleNum) {
+        List<HotArticleVo> hotArticleVoList = new ArrayList<>();
+        //只封装id和title
+        hotArticleVoList = articleMapper.getHotArticleByViewCount(hotArticleNum);
+
+        return Result.success(hotArticleVoList);
     }
 
 

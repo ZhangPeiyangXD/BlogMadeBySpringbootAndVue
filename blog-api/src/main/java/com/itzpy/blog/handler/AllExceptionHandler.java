@@ -3,6 +3,7 @@ package com.itzpy.blog.handler;
 import com.itzpy.blog.vo.Result;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 // 统一异常处理(对所有的Controller进行AOP加强)
