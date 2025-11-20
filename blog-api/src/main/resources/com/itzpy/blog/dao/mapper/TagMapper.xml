@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--MyBatis配置文件-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itzpy.blog.dao.mapper.TagMapper">
+
+  <select id="findTagsByArticleId" parameterType="Long" resultType="com.itzpy.blog.dao.pojo.Tag">
+    select t.*
+    from article_tag at
+           left join tag t on at.tag_id = t.id
+    where at.article_id = #{articleId}
+  </select>
+
+  <select id="findTagByIds" parameterType="list" resultType="com.itzpy.blog.vo.TagVo">
+    select id, tag_name, avatar from tag
+    where id in
+    <foreach collection="tagIds" item="id" separator="," open="(" close=")">
+      #{id}
+    </foreach>
+  </select>
+</mapper>
