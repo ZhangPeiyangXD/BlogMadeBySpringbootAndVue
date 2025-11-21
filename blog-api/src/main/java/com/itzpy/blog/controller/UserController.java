@@ -21,7 +21,7 @@ public class UserController {
     // @RequestHeader("Authorization") 作用：获取请求头中的Authorization字段的值
     @GetMapping("/currentUser")
     public Result currentUser(@RequestHeader("Authorization") String token){
-        log.info("正在登陆的用户头部信息：{}", token);
+        log.info("正在获取登陆的用户头部信息的token：{}", token);
 
         return sysUserService.findUserByToken(token);
     }
