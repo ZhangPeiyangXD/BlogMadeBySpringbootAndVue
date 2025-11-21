@@ -3,7 +3,6 @@ package com.itzpy.blog.controller;
 
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.vo.Result;
-import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +34,27 @@ public class ArticleController {
     public Result hotArticle() {
         log.info("查询最热文章:");
 
-        return articleService.hot(ArticleService.HOT_ARTICLE_NUM);
+        return articleService.hotArticle(ArticleService.HOT_ARTICLE_NUM);
+    }
+
+
+    @PostMapping("/new")
+    public Result newArticle() {
+        log.info("查询最新文章:");
+
+        return articleService.newArticle(ArticleService.NEW_ARTICLE_NUM);
+    }
+
+
+    /**
+     * 文章归档
+     *
+     * @return result(文章归档列表)
+     */
+    @PostMapping("/listArchives")
+    public Result listArchives() {
+        log.info("查询文章归档:");
+
+        return articleService.listArchives();
     }
 }

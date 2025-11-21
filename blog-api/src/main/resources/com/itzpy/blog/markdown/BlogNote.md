@@ -6,7 +6,7 @@
 
 - Spring Boot
 - Spring MVC
-- MyBatis Plus
+- MyBatis Plus 或者 MyBatis，我个人用的是MyBatis实现对应接口
 
 *这样基本能做到看了接口文档需求自己实现对应的功能。*    
 *比一味的抄代码效率和体验好很多。*

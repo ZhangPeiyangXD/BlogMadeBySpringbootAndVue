@@ -2,6 +2,7 @@ package com.itzpy.blog.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.itzpy.blog.dao.dos.Archives;
 import com.itzpy.blog.dao.mapper.ArticleMapper;
 import com.itzpy.blog.dao.pojo.Article;
 import com.itzpy.blog.service.ArticleService;
@@ -56,12 +57,28 @@ public class ArticleServiceImpl implements ArticleService {
      * @return result(最热文章列表)
      */
     @Override
-    public Result hot(int hotArticleNum) {
+    public Result hotArticle(int hotArticleNum) {
         List<HotArticleVo> hotArticleVoList = new ArrayList<>();
         //只封装id和title
         hotArticleVoList = articleMapper.getHotArticleByViewCount(hotArticleNum);
 
         return Result.success(hotArticleVoList);
+    }
+
+    @Override
+    public Result newArticle(int newArticleNum) {
+        List<NewArticleVo> newArticleVoList = new ArrayList<>();
+        //只封装id和title
+        newArticleVoList = articleMapper.getNewArticleByCreateDate(newArticleNum);
+
+        return Result.success(newArticleVoList);
+    }
+
+    @Override
+    public Result listArchives() {
+        List<Archives> archivesList = articleMapper.listArchives();
+
+        return Result.success(archivesList);
     }
 
 
