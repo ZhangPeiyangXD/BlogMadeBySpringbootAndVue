@@ -65,6 +65,12 @@ public class ArticleServiceImpl implements ArticleService {
         return Result.success(hotArticleVoList);
     }
 
+
+    /**
+     * 获取最新文章
+     * @param newArticleNum 最新文章数量
+     * @return result(最新文章列表)
+     */
     @Override
     public Result newArticle(int newArticleNum) {
         List<NewArticleVo> newArticleVoList = new ArrayList<>();
@@ -74,6 +80,11 @@ public class ArticleServiceImpl implements ArticleService {
         return Result.success(newArticleVoList);
     }
 
+
+    /**
+     * 获取文章归档
+     * @return result(文章归档列表)
+     */
     @Override
     public Result listArchives() {
         List<Archives> archivesList = articleMapper.listArchives();
@@ -83,7 +94,7 @@ public class ArticleServiceImpl implements ArticleService {
 
 
     /**
-     * 将list<article>转换成list<articleVo>
+     * 将list<article>转换成vo list<articleVo>
      *
      * @param records  list<article>
      * @return list<articleVo>

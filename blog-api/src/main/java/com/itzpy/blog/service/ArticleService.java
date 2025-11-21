@@ -31,5 +31,10 @@ public interface ArticleService {
      */
     Result newArticle(int newArticleNum);
 
+
+    /**
+     * 获取文章归档
+     * @return Result<List<ArchiveVo>>
+     */
     Result listArchives();
 }

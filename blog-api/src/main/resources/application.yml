@@ -4,15 +4,23 @@ server:
 spring:
   application:
     name: zpy_blog
+  # 数据库
   datasource:
     url: jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimeZone=UTC
     username: root
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # 文件上传
   servlet:
     multipart:
       max-request-size: 20MB
       max-file-size: 2MB
+  # redis
+  redis:
+    host: localhost
+    port: 6379
+    database: 2
+
 
 mybatis-plus:
   configuration:
@@ -24,3 +32,9 @@ mybatis-plus:
 qiniu:
   accessKey: 11
   accessSecretKey: 22
+
+# JWT 自定义配置
+jwt:
+  token-expiration: 86400000  # 24小时毫秒数 (24 * 60 * 60 * 1000)
+  secret: zpy_blog            # JWT 密钥
+  salt: zpy_blog              # 加密盐值

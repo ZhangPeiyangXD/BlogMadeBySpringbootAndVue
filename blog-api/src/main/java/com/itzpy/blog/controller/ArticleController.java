@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 //json数据进行交互
 @RestController
-@RequestMapping("articles")
+@RequestMapping("/articles")
 @Slf4j
 public class ArticleController {
     @Autowired
