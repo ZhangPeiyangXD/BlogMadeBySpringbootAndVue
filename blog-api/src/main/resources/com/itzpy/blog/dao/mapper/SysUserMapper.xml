@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--MyBatis配置文件-->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itzpy.blog.dao.mapper.SysUserMapper">
+  <insert id="insertSelective" parameterType="com.itzpy.blog.dao.pojo.SysUser">
+    INSERT INTO sys_user
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">id,</if>
+      <if test="account != null">account,</if>
+      <if test="admin != null">admin,</if>
+      <if test="avatar != null">avatar,</if>
+      <if test="createDate != null">create_date,</if>
+      <if test="deleted != null">deleted,</if>
+      <if test="email != null">email,</if>
+      <if test="lastLogin != null">last_login,</if>
+      <if test="mobilePhoneNumber != null">mobile_phone_number,</if>
+      <if test="nickname != null">nickname,</if>
+      <if test="password != null">password,</if>
+      <if test="salt != null">salt,</if>
+      <if test="status != null">status,</if>
+    </trim>
+    <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+      <if test="id != null">#{id},</if>
+      <if test="account != null">#{account},</if>
+      <if test="admin != null">#{admin},</if>
+      <if test="avatar != null">#{avatar},</if>
+      <if test="createDate != null">#{createDate},</if>
+      <if test="deleted != null">#{deleted},</if>
+      <if test="email != null">#{email},</if>
+      <if test="lastLogin != null">#{lastLogin},</if>
+      <if test="mobilePhoneNumber != null">#{mobilePhoneNumber},</if>
+      <if test="nickname != null">#{nickname},</if>
+      <if test="password != null">#{password},</if>
+      <if test="salt != null">#{salt},</if>
+      <if test="status != null">#{status},</if>
+    </trim>
+  </insert>
+
+</mapper>

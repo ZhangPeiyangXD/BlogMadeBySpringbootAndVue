@@ -16,4 +16,20 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      */
     @Select("select * from sys_user where account = #{account} and password = #{password} limit 1")
     SysUser selectByAccountAndPassword(String account, String password);
+
+
+    /**
+     * 根据账号查询用户
+     * @param account 账号
+     * @return 用户信息
+     */
+    @Select("select * from sys_user where account = #{account} limit 1")
+    SysUser selectByAccount(String account);
+
+
+    /**
+     * 动态插入用户
+     * @param sysUser 用户信息
+     */
+    void insertSelective(SysUser sysUser);
 }

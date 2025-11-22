@@ -24,6 +24,15 @@ public class LoginInterceptor implements HandlerInterceptor {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+
+    /**
+     * 请求处理之前执行
+     * @param request 请求对象
+     * @param response 响应对象
+     * @param handler 处理器对象
+     * @return true表示继续处理请求，false表示拒绝处理请求
+     * @throws Exception 抛出的异常
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String uri = request.getRequestURI();
@@ -35,6 +44,11 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         // 如果是login开头的请求，直接放行
         if (uri.startsWith("/login")) {
+            return true;
+        }
+        
+        // 如果是register请求，直接放行
+        if (uri.equals("/register")) {
             return true;
         }
 
