@@ -2,7 +2,9 @@ package com.itzpy.blog.interceptor;
 
 import com.alibaba.fastjson.JSON;
 import com.itzpy.blog.dao.pojo.SysUser;
+import com.itzpy.blog.service.LoginService;
 import com.itzpy.blog.utils.JWTUtils;
+import com.itzpy.blog.utils.UserThreadLocal;
 import com.itzpy.blog.vo.Result;
 import com.itzpy.blog.vo.ErrorCode;
 import org.apache.commons.lang3.StringUtils;
@@ -24,6 +26,8 @@ public class LoginInterceptor implements HandlerInterceptor {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Autowired
+    private LoginService loginService;
 
     /**
      * 请求处理之前执行
@@ -42,13 +46,8 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 如果是login开头的请求，直接放行
-        if (uri.startsWith("/login")) {
-            return true;
-        }
-        
-        // 如果是register请求，直接放行
-        if (uri.equals("/register")) {
+        // 放行登录和注册请求
+        if (uri.startsWith("/login") || uri.equals("/register")) {
             return true;
         }
 
@@ -64,11 +63,18 @@ public class LoginInterceptor implements HandlerInterceptor {
                 response.getWriter().print(JSON.toJSONString(result));
                 return false;
             }
-            // token验证成功，放行请求
+            
+            // 登录成功时，调用loginService.checkToken获取用户信息并存储到UserThreadLocal中
+            SysUser sysUser = loginService.checkToken(token);
+            if (sysUser != null) {
+                UserThreadLocal.put(sysUser);
+            }
+
+            // 放行
             return true;
         }
 
-        // 如果既不是login请求又没有有效的JWT，则拒绝访问
+        // 如果既不是登录/注册请求又没有有效的JWT，则拒绝访问
         response.setContentType("application/json;charset=utf-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg())));
@@ -110,5 +116,20 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         // 验证成功
         return null;
+    }
+
+
+    /**
+     * 请求处理完成后执行（删除用户线程，防止内存泄漏）
+     * @param request 请求对象
+     * @param response 响应对象
+     * @param handler 处理器对象
+     * @param ex 异常对象
+     * @throws Exception 抛出的异常
+     */
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        // 请求处理完成后，清空当前线程中的用户信息
+        UserThreadLocal.remove();
     }
 }

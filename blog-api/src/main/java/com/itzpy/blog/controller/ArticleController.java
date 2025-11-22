@@ -2,6 +2,7 @@ package com.itzpy.blog.controller;
 
 
 import com.itzpy.blog.service.ArticleService;
+import com.itzpy.blog.utils.UserThreadLocal;
 import com.itzpy.blog.vo.Result;
 import com.itzpy.blog.vo.params.PageParams;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,13 @@ public class ArticleController {
     @PostMapping("/hot")
     public Result hotArticle() {
         log.info("查询最热文章:");
+
+        // 安全地打印用户信息（如果存在）
+        if (UserThreadLocal.get() != null) {
+            System.out.println(UserThreadLocal.get().toString());
+        } else {
+            System.out.println("当前没有登录用户");
+        }
 
         return articleService.hotArticle(ArticleService.HOT_ARTICLE_NUM);
     }

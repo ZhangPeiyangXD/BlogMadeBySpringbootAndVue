@@ -28,6 +28,7 @@ public class WebMVCConfig implements WebMvcConfigurer {
         registry.addInterceptor(new LoginInterceptor())
                 .addPathPatterns("/**")  // 拦截所有请求
                 .excludePathPatterns("/login**", "/articles", "/articles/**",
-                        "/tags/hot", "/users/currentUser", "/register");
+                        "/tags/hot", "/users/currentUser", "/register",
+                        "/logout");
     }
 }
