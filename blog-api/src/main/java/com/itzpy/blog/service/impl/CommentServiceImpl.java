@@ -14,6 +14,7 @@ import com.itzpy.blog.vo.UserVo;
 import com.itzpy.blog.vo.params.CommentParam;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -30,6 +31,8 @@ public class CommentServiceImpl implements CommentService {
     @Autowired
     private SysUserService sysUserService;
 
+    @Value("${authorId}")
+    private Long authorId;
 
     /**
      * 根据文章id查询评论列表
@@ -74,7 +77,7 @@ public class CommentServiceImpl implements CommentService {
             comment.setAuthorId(currentUser.getId());
         } else {
             // 匿名用户发表评论，使用默认作者ID (例如系统管理员ID)
-            comment.setAuthorId(1234L);
+            comment.setAuthorId(authorId);
         }
         
         // 判断是评论文章还是一级评论

@@ -1,3 +1,223 @@
+# 博客项目笔记
+
+## 项目结构
+
+```
+blog-parent
+├── blog-api
+│   ├── src/main/java/com/itzpy/blog
+│   │   ├── config
+│   │   ├── controller
+│   │   ├── dao
+│   │   │   ├── dos
+│   │   │   ├── mapper
+│   │   │   └── pojo
+│   │   ├── handler
+│   │   ├── interceptor
+│   │   ├── service
+│   │   │   └── impl
+│   │   ├── utils
+│   │   ├── vo
+│   │   │   ├── params
+│   │   │   └── vo
+│   │   └── BlogApp.java
+│   └── src/main/resources
+│       └── mapper
+└── pom.xml
+```
+
+## 功能模块
+
+### 用户认证模块
+- 登录 `/login`
+- 注册 `/register`
+- 登出 `/logout`
+- JWT Token验证
+
+### 文章模块
+- 文章列表 `/articles`
+- 文章详情 `/articles/{id}`
+- 热门文章 `/tags/hot`
+- 发布文章 `/articles/publish`
+
+### 评论模块
+- 评论列表 `/comments/article/{id}`
+- 发表评论 `/comments/create/change`
+
+### 标签模块
+- 热门标签 `/tags/hot`
+
+## 技术栈
+
+- Spring Boot 2.7.3
+- MyBatis Plus 3.4.3
+- MySQL 8.0
+- Redis
+- JWT
+- FastJSON
+- Maven
+
+## 核心配置
+
+### application.yml
+
+```yaml
+server:
+  port: 8888
+
+spring:
+  application:
+    name: zpy_blog
+  datasource:
+    url: jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimeZone=UTC
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-request-size: 20MB
+      max-file-size: 2MB
+  redis:
+    host: localhost
+    port: 6379
+    database: 2
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath*:com/itzpy/blog/dao/mapper/*.xml
+  type-aliases-package: com.itzpy.blog.dao.pojo
+
+# 七牛云配置
+qiniu:
+  accessKey: 11
+  accessSecretKey: 22
+
+# JWT 自定义配置
+jwt:
+  token-expiration: 86400000  # 24小时毫秒数 (24 * 60 * 60 * 1000)
+  secret: zpy_blog            # JWT 密钥
+  salt: zpy_blog              # 加密盐值
+```
+
+## 核心代码分析
+
+### 拦截器配置
+
+```java
+@Configuration
+public class WebMVCConfig implements WebMvcConfigurer {
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new LoginInterceptor())
+                .addPathPatterns("/**")
+                .excludePathPatterns("/login**", "/articles", "/articles/**",
+                        "/tags/hot", "/users/currentUser", "/register",
+                        "/logout", "/comments/article/**", "/comments/create/change");
+    }
+}
+```
+
+### 登录拦截器
+
+```java
+public class LoginInterceptor implements HandlerInterceptor {
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        String uri = request.getRequestURI();
+        
+        // 处理OPTIONS预检请求
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
+        // 放行登录和注册请求
+        if (uri.startsWith("/login") || uri.equals("/register")) {
+            return true;
+        }
+
+        // 检查是否携带JWT token
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            // 验证JWT token并检查Redis中是否存在对应的用户信息
+            String token = authorizationHeader.substring(7);
+            Result result = validateJwtTokenAndCheckRedis(token);
+            if (result != null) {
+                response.setContentType("application/json;charset=utf-8");
+                response.getWriter().print(JSON.toJSONString(result));
+                return false;
+            }
+            
+            // 登录成功时，调用loginService.checkToken获取用户信息并存储到UserThreadLocal中
+            SysUser sysUser = loginService.checkToken(token);
+            if (sysUser != null) {
+                UserThreadLocal.put(sysUser);
+            }
+
+            // 放行
+            return true;
+        }
+
+        // 如果既不是登录/注册请求又没有有效的JWT，则拒绝访问
+        response.setContentType("application/json;charset=utf-8");
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg())));
+        return false;
+    }
+}
+```
+
+### 评论服务实现
+
+```java
+@Service
+public class CommentServiceImpl implements CommentService {
+    @Override
+    public Result create(CommentParam commentParam) {
+        // 检查参数
+        if (commentParam == null || commentParam.getContent() == null || commentParam.getArticleId() == null) {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
+        
+        // 检查用户是否登录
+        if (UserThreadLocal.get() == null) {
+            return Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg());
+        }
+        
+        // 构造评论对象
+        Comment comment = new Comment();
+        comment.setArticleId(commentParam.getArticleId());
+        comment.setContent(commentParam.getContent());
+        comment.setAuthorId(UserThreadLocal.get().getId());
+        comment.setCreateDate(System.currentTimeMillis());
+        
+        // 判断是评论文章还是一级评论
+        if (commentParam.getParent() == null || commentParam.getParent() == 0) {
+            // 评论文章
+            comment.setLevel(1);
+        } else {
+            // 回复评论
+            comment.setParentId(commentParam.getParent());
+            comment.setToUid(commentParam.getToUserId());
+            comment.setLevel(2);
+        }
+        
+        // 插入评论到数据库
+        int insertResult = commentMapper.insertComment(comment);
+        if (insertResult != 1) {
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMsg());
+        }
+        
+        // 更新文章的评论数
+        articleMapper.updateCommentCount(commentParam.getArticleId());
+        
+        // 转换为CommentVo返回
+        CommentVo commentVo = copy(comment);
+        return Result.success(commentVo);
+    }
+}
+```
+
 # 博客项目开发笔记 📝
 
 > 🛠️ **开发提示**: 开发时使用1-3的那个前端文件，不要用上线的，因为后面对项目，数据库的表都有优化。
@@ -41,7 +261,7 @@
 ### 4.3 实现拦截逻辑
 
 #### 处理OPTIONS预检请求
-```java
+```
 if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
     return true;
 }
@@ -123,7 +343,7 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 
 ---
 
-## 9. 拦截器相关：
+## 9. 拦截器相关：（这个项目前端有问题，拿不到请求头中的token，直接全部接口放行）
 
 ### 9.1 拦截器设计思路 🧠
 
@@ -154,7 +374,7 @@ graph TD
     K -->|是| C
 ```
 
-#### 公开接口列表
+#### 公开接口列表（这个项目前端有问题，拿不到请求头中的token，直接全部接口放行）
 以下接口不需要认证即可访问：
 - `/login` 开头的所有接口（登录相关）
 - `/register` 注册接口
@@ -297,7 +517,7 @@ if (comment.childrens && comment.childrens.length > 0) {
 ```
 
 #### Vue组件安全访问
-```vue
+```html
 <!-- 使用v-if确保数据存在 -->
 <div v-if="comment.childrens">
   <div v-for="child in comment.childrens" :key="child.id">
@@ -307,3 +527,168 @@ if (comment.childrens && comment.childrens.length > 0) {
 ```
 
 ---
+
+## 13. 写文章相关 📝
+
+### 13.1 前端源码问题：标签选择异常
+
+#### 问题描述
+在写文章页面选择标签时，点击一个标签会导致所有标签都被选中。
+
+#### 核心修复点
+Blog_Write.vue中:
+最关键的变化是将 `t.tagName` 改为 `{{t.tagName}}`。在 Vue.js 中，要显示变量的值需要使用双花括号插值语法。
+
+#### 修复前代码
+```html
+<el-checkbox v-for="t in tags" :key="t.id" :label="t.id" name="tags">t.tagName</el-checkbox>
+```
+
+#### 修复后代码
+```html
+<el-checkbox v-for="t in tags" :key="t.id" :label="t.id" name="tags">{{t.tagName}}</el-checkbox>
+```
+
+### 13.2 后端文章发布功能实现要点 🛠️
+
+#### 文章发布流程
+1. 接收前端传递的文章参数（标题、摘要、内容、分类、标签等）
+2. 创建文章对象并设置基础属性
+3. 处理文章分类关联
+4. 处理文章标签关联
+5. 保存文章内容
+6. 更新文章与内容的关联关系
+
+#### 关键技术点
+
+##### 1. 数据类型转换安全处理
+在处理前端传递的ID参数时，需要进行安全的类型转换：
+
+```java
+// 安全处理分类ID
+if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
+    article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
+} else {
+    article.setCategoryId(1L); // 设置默认分类ID
+}
+
+// 安全处理标签ID
+if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
+    articleTag.setTagId(Long.valueOf(tagVo.getId()));
+    articleTagMapper.insert(articleTag);
+}
+```
+
+##### 2. 默认值配置
+使用`@Value`注解为文章作者设置默认值：
+
+```java
+@Value("1")  // 设置默认作者ID为1
+private Long authorId;
+```
+
+##### 3. 事务处理
+文章发布涉及多个表的操作，需要确保数据一致性：
+
+```java
+// 1. 插入文章基本信息
+articleMapper.insert(article);
+Long articleId = article.getId();
+
+// 2. 插入标签关联信息
+for(TagVo tagVo : tagVoList){
+    if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
+        ArticleTag articleTag = new ArticleTag();
+        articleTag.setArticleId(articleId);
+        articleTag.setTagId(Long.valueOf(tagVo.getId()));
+        articleTagMapper.insert(articleTag);
+    }
+}
+
+// 3. 插入文章内容
+ArticleBody articleBody = new ArticleBody();
+articleBody.setArticleId(articleId);
+articleBody.setContent(articleParam.getBody().getContent());
+articleBody.setContentHtml(articleParam.getBody().getContentHtml());
+articleBodyMapper.insert(articleBody);
+
+// 4. 更新文章与内容的关联
+article.setBodyId(articleBody.getId());
+articleMapper.update(article);
+```
+
+#### 常见异常处理
+
+##### 1. NumberFormatException处理
+当尝试将null或非法字符串转换为Long时会抛出此异常，需要进行空值检查：
+
+```java
+// 错误示例 - 会导致NumberFormatException
+@Value("${authorId}")  // 配置文件中不存在authorId属性
+private Long authorId;
+
+// 正确做法
+@Value("1")  // 直接设置默认值
+private Long authorId;
+```
+
+##### 2. 空指针异常处理
+在处理对象属性时需要进行空值检查：
+
+```java
+// 安全检查分类对象和其ID
+if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
+    article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
+}
+```
+
+### 13.3 文章发布接口设计 📡
+
+#### 接口地址
+```
+POST /articles/publish
+```
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| title | string | 是 | 文章标题 |
+| summary | string | 是 | 文章摘要 |
+| body | object | 是 | 文章内容对象 |
+| category | object | 是 | 分类对象 |
+| tags | array | 是 | 标签数组 |
+
+#### 响应结果
+```json
+{
+  "success": true,
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "id": "123456789"
+  }
+}
+```
+
+#### 前端调用示例
+```javascript
+let article = {
+  title: this.articleForm.title,
+  summary: this.articleForm.summary,
+  category: this.articleForm.category,
+  tags: tags,
+  body: {
+    content: this.articleForm.editor.value,
+    contentHtml: this.articleForm.editor.ref.d_render
+  }
+}
+
+publishArticle(article, this.$store.state.token).then((data) => {
+  if(data.success){
+    that.$message({message: '发布成功啦', type: 'success', showClose: true})
+    that.$router.push({path: `/view/${data.data.id}`})
+  } else {
+    that.$message({message: '发布文章失败:'+data.msg, type: 'error', showClose: true});
+  }
+})
+```

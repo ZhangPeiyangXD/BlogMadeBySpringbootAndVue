@@ -46,8 +46,8 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 放行不需要登录的公开接口
-        if (uri.startsWith("/login") || uri.equals("/register") || 
+        // 放行所有接口，这个项目前端做的真是傻逼。jwt拿不到，token取不到。还一堆私人bug
+        if (uri.startsWith("/") || uri.equals("/register") ||
             uri.equals("/comments/create/change")) {
             return true;
         }

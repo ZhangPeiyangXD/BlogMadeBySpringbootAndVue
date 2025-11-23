@@ -5,28 +5,30 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itzpy.blog.dao.dos.Archives;
 import com.itzpy.blog.dao.mapper.ArticleBodyMapper;
 import com.itzpy.blog.dao.mapper.ArticleMapper;
+import com.itzpy.blog.dao.mapper.ArticleTagMapper;
 import com.itzpy.blog.dao.mapper.CategoryMapper;
-import com.itzpy.blog.dao.pojo.Article;
-import com.itzpy.blog.dao.pojo.Result;
+import com.itzpy.blog.dao.pojo.*;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.service.TagService;
 import com.itzpy.blog.service.ThreadService;
 import com.itzpy.blog.vo.*;
+import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
 import org.joda.time.DateTime;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ArticleServiceImpl implements ArticleService {
-
-    @Autowired
-    private ArticleMapper articleMapper;
     @Autowired
     private TagService tagService;
     @Autowired
@@ -35,9 +37,17 @@ public class ArticleServiceImpl implements ArticleService {
     private SysUserService sysUserService;
 
     @Autowired
+    private ArticleMapper articleMapper;
+    @Autowired
     private ArticleBodyMapper articleBodyMapper;
     @Autowired
     private CategoryMapper categoryMapper;
+    @Autowired
+    ArticleTagMapper articleTagMapper;
+
+
+    @Value("${authorId}")
+    private Long authorId;
 
     /**
      * 分页查询文章列表
@@ -121,6 +131,70 @@ public class ArticleServiceImpl implements ArticleService {
         return Result.success(articleVo);
     }
 
+    /**
+     * 发布文章
+     *
+     * @param articleParam 文章参数
+     * @return result(发布结果)
+     */
+    @Transactional
+    @Override
+    public Result publish(ArticleParam articleParam) {
+        Article article = new Article();
+        // 设置作者id
+        article.setAuthorId(authorId);
+
+        // 插入文章表，获取文章id
+        articleMapper.insert(article);
+        Long articleId = article.getId();
+
+        //设置权重，观看量，标题，简介, 评论，创建时间
+        article.setWeight(Article.Article_Common);
+        article.setViewCounts(0);
+        article.setTitle(articleParam.getTitle());
+        article.setSummary(articleParam.getSummary());
+        article.setCommentCounts(0);
+        article.setCreateDate(System.currentTimeMillis());
+        // 修复可能的null值问题
+        if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
+            article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
+        } else {
+            article.setCategoryId(1L); // 设置默认分类ID
+        }
+
+        //标签：
+        List<TagVo> tagVoList = articleParam.getTags();
+        if (tagVoList != null) {
+            for(TagVo tagVo : tagVoList){
+                ArticleTag articleTag = new ArticleTag();
+                articleTag.setArticleId(articleId);
+                // 修复可能的null值问题
+                if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
+                    articleTag.setTagId(Long.valueOf(tagVo.getId()));
+                    articleTagMapper.insert(articleTag);
+                }
+            }
+        }
+
+        // 文章内容：
+        ArticleBody articleBody = new ArticleBody();
+
+        articleBody.setArticleId(articleId);
+        articleBody.setContent(articleParam.getBody().getContent());
+        articleBody.setContentHtml(articleParam.getBody().getContentHtml());
+
+        articleBodyMapper.insert(articleBody);
+        //获取文章主键Id值
+        article.setBodyId(articleBody.getId());
+
+        //更新文章
+        articleMapper.update(article);
+
+        Map<String, String> map = new HashMap<>();
+        map.put("id", articleId.toString());
+        return Result.success(map);
+    }
+
 
     /**
      * 将list<article>转换成vo list<articleVo>
@@ -136,6 +210,12 @@ public class ArticleServiceImpl implements ArticleService {
         return articleVoList;
     }
 
+    /**
+     * 将list<article>转换成vo list<articleVo>
+     *
+     * @param records  list<article>
+     * @return list<articleVo>
+     */
     private List<ArticleVo> copyList(List<Article> records, boolean isTag, boolean isAuthor) {
         List<ArticleVo> articleVoList = new ArrayList<>();
         for (Article record : records) {

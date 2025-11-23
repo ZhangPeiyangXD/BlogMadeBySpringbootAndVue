@@ -22,4 +22,11 @@ public interface TagService {
      * @return Result 最热的标签列表
      */
     Result hot(int limitHotNum);
+
+
+    /**
+     * 查询所有标签
+     * @return Result 所有标签列表
+     */
+    Result findAll();
 }

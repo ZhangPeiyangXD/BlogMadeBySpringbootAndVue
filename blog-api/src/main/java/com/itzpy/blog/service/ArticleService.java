@@ -2,6 +2,7 @@ package com.itzpy.blog.service;
 
 
 import com.itzpy.blog.dao.pojo.Result;
+import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
 
 public interface ArticleService {
@@ -45,4 +46,12 @@ public interface ArticleService {
      * @return Result<ArticleVo>
      */
     Result findArticleById(Long id);
+
+
+    /**
+     * 发布文章
+     * @param articleParam 文章参数
+     * @return Result<articleId>
+     */
+    Result publish(ArticleParam articleParam);
 }

@@ -22,4 +22,16 @@ public class TagController {
 
         return tagService.hot(HOT_TAG_NUM);
     }
+
+
+    /**
+     * 查询所有标签
+     * @return Result<List<TagVo>> 标签列表
+     */
+    @GetMapping
+    public Result findAll() {
+        log.info("查询所有标签");
+
+        return tagService.findAll();
+    }
 }

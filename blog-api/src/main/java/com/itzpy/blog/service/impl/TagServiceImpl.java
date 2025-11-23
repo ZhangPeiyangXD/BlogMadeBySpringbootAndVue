@@ -58,6 +58,18 @@ public class TagServiceImpl implements TagService {
 
 
     /**
+     * 查询所有标签
+     * @return Result 所有标签列表
+     */
+    @Override
+    public Result findAll() {
+        List<Tag> tags = tagMapper.findAll();
+
+        return Result.success(copyList(tags));
+    }
+
+
+    /**
      * 拷贝列表
      * @param tags 标签列表
      * @return List<TagVo> 拷贝后的标签列表
@@ -80,5 +92,4 @@ public class TagServiceImpl implements TagService {
         BeanUtils.copyProperties(tag, tagVo);
         return tagVo;
     }
-
 }

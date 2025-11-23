@@ -1,9 +1,11 @@
 package com.itzpy.blog.controller;
 
 
+import com.itzpy.blog.dao.pojo.ArticleMessage;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.utils.UserThreadLocal;
 import com.itzpy.blog.dao.pojo.Result;
+import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,5 +88,18 @@ public class ArticleController {
         log.info("查询文章详情:{}", id);
 
         return articleService.findArticleById(id);
+    }
+
+    /**
+     * 发布文章
+     *
+     * @param articleParam 文章信息
+     * @return result(发布结果)
+     */
+    @PostMapping("/publish")
+    public Result publish(@RequestBody ArticleParam articleParam) {
+        log.info("发布文章:{}", articleParam);
+
+        return articleService.publish(articleParam);
     }
 }

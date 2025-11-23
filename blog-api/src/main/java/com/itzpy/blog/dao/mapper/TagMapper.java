@@ -12,6 +12,14 @@ import java.util.List;
 public interface TagMapper extends BaseMapper<Tag> {
 
     /**
+     * 查询所有标签
+     * @return List<Tag> 所有标签列表
+     */
+    @Select("select * from tag")
+    List<Tag> findAll();
+
+
+    /**
      * 根据文章id查询标签列表
      * @param articleId 文章id
      * @return List<Tag> 标签列表
