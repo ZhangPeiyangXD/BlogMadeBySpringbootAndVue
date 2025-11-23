@@ -29,6 +29,6 @@ public class WebMVCConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")  // 拦截所有请求
                 .excludePathPatterns("/login**", "/articles", "/articles/**",
                         "/tags/hot", "/users/currentUser", "/register",
-                        "/logout","/comments/article/**");
+                        "/logout", "/comments/article/**");
     }
 }

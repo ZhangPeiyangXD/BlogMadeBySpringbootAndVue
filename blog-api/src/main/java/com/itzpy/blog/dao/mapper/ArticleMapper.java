@@ -10,6 +10,7 @@ import com.itzpy.blog.vo.HotArticleVo;
 import com.itzpy.blog.vo.NewArticleVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 
 import java.util.List;
@@ -60,4 +61,12 @@ public interface ArticleMapper extends BaseMapper<Article> {
      * @return 影响的行数
      */
     int update(Article  article);
+    
+    /**
+     * 更新文章评论数
+     * @param articleId 文章ID
+     * @return 影响的行数
+     */
+    @Update("UPDATE article SET comment_counts = comment_counts + 1 WHERE id = #{articleId}")
+    int updateCommentCount(@org.apache.ibatis.annotations.Param("articleId") Long articleId);
 }

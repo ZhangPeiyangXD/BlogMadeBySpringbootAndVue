@@ -46,8 +46,9 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 放行登录和注册请求
-        if (uri.startsWith("/login") || uri.equals("/register")) {
+        // 放行不需要登录的公开接口
+        if (uri.startsWith("/login") || uri.equals("/register") || 
+            uri.equals("/comments/create/change")) {
             return true;
         }
 
