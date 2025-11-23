@@ -3,7 +3,9 @@ package com.itzpy.blog.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itzpy.blog.dao.dos.Archives;
+import com.itzpy.blog.dao.mapper.ArticleBodyMapper;
 import com.itzpy.blog.dao.mapper.ArticleMapper;
+import com.itzpy.blog.dao.mapper.CategoryMapper;
 import com.itzpy.blog.dao.pojo.Article;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.service.SysUserService;
@@ -26,6 +28,10 @@ public class ArticleServiceImpl implements ArticleService {
     @Autowired
     private TagService tagService;
     @Autowired
+    private ArticleBodyMapper articleBodyMapper;
+    @Autowired
+    private CategoryMapper categoryMapper;
+    @Autowired
     private SysUserService sysUserService;
 
 
@@ -45,7 +51,7 @@ public class ArticleServiceImpl implements ArticleService {
         queryWrapper.orderByDesc(Article::getWeight, Article::getCreateDate);
         Page<Article> articlePage = articleMapper.selectPage(page, queryWrapper);
 
-        List<ArticleVo> articleVos = copyList(articlePage.getRecords(), true, true);
+        List<ArticleVo> articleVos = copyList(articlePage.getRecords(), true, true,false,false);
 
         return Result.success(articleVos);
     }
@@ -92,6 +98,22 @@ public class ArticleServiceImpl implements ArticleService {
         return Result.success(archivesList);
     }
 
+    /**
+     * 查询文章详情
+     *
+     * @param id 文章id
+     * @return result(文章详情)
+     */
+    @Override
+    public Result findArticleById(Long id) {
+        //1.根据id查询文章
+        //2.根据bodyId和categoryId做关联查询(都在copy方法中实现了)
+        Article article = articleMapper.getById(id);
+        ArticleVo articleVo =  copy(article, true, true,true, true);
+
+        return Result.success(articleVo);
+    }
+
 
     /**
      * 将list<article>转换成vo list<articleVo>
@@ -99,13 +121,22 @@ public class ArticleServiceImpl implements ArticleService {
      * @param records  list<article>
      * @return list<articleVo>
      */
-    private List<ArticleVo> copyList(List<Article> records, boolean isTag, boolean isAuthor) {
+    private List<ArticleVo> copyList(List<Article> records, boolean isTag, boolean isAuthor, boolean isBody, boolean isCategory) {
         List<ArticleVo> articleVoList = new ArrayList<>();
         for (Article record : records) {
-            articleVoList.add(copy(record, isTag, isAuthor));
+            articleVoList.add(copy(record, isTag, isAuthor, isBody, isCategory));
         }
         return articleVoList;
     }
+
+    private List<ArticleVo> copyList(List<Article> records, boolean isTag, boolean isAuthor) {
+        List<ArticleVo> articleVoList = new ArrayList<>();
+        for (Article record : records) {
+            articleVoList.add(copy(record, isTag, isAuthor, false, false));
+        }
+        return articleVoList;
+    }
+
 
 
     /**
@@ -116,21 +147,29 @@ public class ArticleServiceImpl implements ArticleService {
      * @param isAuthor  有无作者信息
      * @return articleVo
      */
-    private ArticleVo copy(Article article, boolean isTag, boolean isAuthor) {
+    private ArticleVo copy(Article article, boolean isTag, boolean isAuthor, boolean isBody, boolean isCategory) {
         ArticleVo articleVo = new ArticleVo();
         BeanUtils.copyProperties(article, articleVo);
 
         articleVo.setCreateDate(new DateTime(article.getCreateDate()).toString("yyyy-MM-dd HH:mm"));
 
         Long articleId = article.getId();
+        Long categoryId = article.getCategoryId();
+        Long bodyId = article.getBodyId();
+        Long authorId = article.getAuthorId();
+        //判断接口是否需要额外信息
         if(isTag){
-            //通过文章id获取文章标签
             articleVo.setTags(tagService.findTagsByArticleId(articleId));
         }
         if(isAuthor){
-            articleVo.setAuthor(sysUserService.findUserById(articleId).getNickname());
+            articleVo.setAuthor(sysUserService.findUserById(authorId).getNickname());
         }
-
+        if(isBody){
+            articleVo.setBody(articleBodyMapper.selectContentById(bodyId));
+        }
+        if(isCategory){
+            articleVo.setCategory(categoryMapper.findCategoryById(categoryId));
+        }
         return articleVo;
     }
 }

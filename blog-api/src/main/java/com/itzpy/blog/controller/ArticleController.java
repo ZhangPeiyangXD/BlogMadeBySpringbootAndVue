@@ -31,6 +31,10 @@ public class ArticleController {
     }
 
 
+    /**
+     * 最热文章
+     * @return result(最热文章列表)
+     */
     @PostMapping("/hot")
     public Result hotArticle() {
         log.info("查询最热文章:");
@@ -46,6 +50,11 @@ public class ArticleController {
     }
 
 
+
+    /**
+     * 最新文章
+     * @return result(最新文章列表)
+     */
     @PostMapping("/new")
     public Result newArticle() {
         log.info("查询最新文章:");
@@ -64,5 +73,19 @@ public class ArticleController {
         log.info("查询文章归档:");
 
         return articleService.listArchives();
+    }
+
+
+    /**
+     * 查询文章详情
+     *
+     * @param id 文章id
+     * @return result(文章详情)
+     */
+    @PostMapping("/view/{id}")
+    public Result findArticleById(@PathVariable("id") Long id) {
+        log.info("查询文章详情:{}", id);
+
+        return articleService.findArticleById(id);
     }
 }

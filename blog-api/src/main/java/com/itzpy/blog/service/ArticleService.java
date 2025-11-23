@@ -37,4 +37,12 @@ public interface ArticleService {
      * @return Result<List<ArchiveVo>>
      */
     Result listArchives();
+
+
+    /**
+     * 根据文章id查询文章
+     * @param id 文章id
+     * @return Result<ArticleVo>
+     */
+    Result findArticleById(Long id);
 }

@@ -28,10 +28,10 @@ public class ArticleVo {
 
     private String author;
 
-    //private ArticleBodyVo body;
+    private ArticleBodyVo body;
 
     private List<TagVo> tags;
 
-    //private CategoryVo category;
+    private CategoryVo category;
 
 }
