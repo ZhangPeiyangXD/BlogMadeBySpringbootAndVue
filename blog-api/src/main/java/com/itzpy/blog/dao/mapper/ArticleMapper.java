@@ -52,4 +52,12 @@ public interface ArticleMapper extends BaseMapper<Article> {
      */
     @Select("select * from article where id = #{id}")
     Article getById(Long id);
+
+
+    /**
+     * 更新文章
+     * @param article 文章
+     * @return 影响的行数
+     */
+    int update(Article  article);
 }

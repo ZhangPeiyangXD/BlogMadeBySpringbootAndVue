@@ -10,6 +10,7 @@ import com.itzpy.blog.dao.pojo.Article;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.service.TagService;
+import com.itzpy.blog.service.ThreadService;
 import com.itzpy.blog.vo.*;
 import com.itzpy.blog.vo.params.PageParams;
 import org.joda.time.DateTime;
@@ -28,12 +29,14 @@ public class ArticleServiceImpl implements ArticleService {
     @Autowired
     private TagService tagService;
     @Autowired
-    private ArticleBodyMapper articleBodyMapper;
-    @Autowired
-    private CategoryMapper categoryMapper;
+    private ThreadService threadService;
     @Autowired
     private SysUserService sysUserService;
 
+    @Autowired
+    private ArticleBodyMapper articleBodyMapper;
+    @Autowired
+    private CategoryMapper categoryMapper;
 
     /**
      * 分页查询文章列表
@@ -51,7 +54,7 @@ public class ArticleServiceImpl implements ArticleService {
         queryWrapper.orderByDesc(Article::getWeight, Article::getCreateDate);
         Page<Article> articlePage = articleMapper.selectPage(page, queryWrapper);
 
-        List<ArticleVo> articleVos = copyList(articlePage.getRecords(), true, true,false,false);
+        List<ArticleVo> articleVos = copyList(articlePage.getRecords(), true, true);
 
         return Result.success(articleVos);
     }
@@ -110,6 +113,9 @@ public class ArticleServiceImpl implements ArticleService {
         //2.根据bodyId和categoryId做关联查询(都在copy方法中实现了)
         Article article = articleMapper.getById(id);
         ArticleVo articleVo =  copy(article, true, true,true, true);
+
+        //3.增加阅读数(在线程池中执行)
+        threadService.updateArticleViewCount(articleMapper, article);
 
         return Result.success(articleVo);
     }

@@ -17,6 +17,38 @@
     <result column="category_id" property="categoryId"/>
   </resultMap>
 
+  <update id="update" parameterType="com.itzpy.blog.dao.pojo.Article">
+    update article
+    <set>
+      <if test="title != null">title = #{title},</if>
+      <if test="summary != null">summary = #{summary},</if>
+      <if test="commentCounts != null">comment_counts = #{commentCounts},</if>
+      <if test="viewCounts != null">view_counts = #{viewCounts},</if>
+      <if test="authorId != null">author_id = #{authorId},</if>
+      <if test="bodyId != null">body_id = #{bodyId},</if>
+      <if test="categoryId != null">category_id = #{categoryId},</if>
+      <if test="weight != null">weight = #{weight},</if>
+      <if test="createDate != null">create_date = #{createDate},</if>
+    </set>
+    where id = #{id}
+  </update>
+  
+  <update id="updateByPrimaryKeySelective" parameterType="com.itzpy.blog.dao.pojo.Article">
+    update article
+    <set>
+      <if test="title != null">title = #{title},</if>
+      <if test="summary != null">summary = #{summary},</if>
+      <if test="commentCounts != null">comment_counts = #{commentCounts},</if>
+      <if test="viewCounts != null">view_counts = #{viewCounts},</if>
+      <if test="authorId != null">author_id = #{authorId},</if>
+      <if test="bodyId != null">body_id = #{bodyId},</if>
+      <if test="categoryId != null">category_id = #{categoryId},</if>
+      <if test="weight != null">weight = #{weight},</if>
+      <if test="createDate != null">create_date = #{createDate},</if>
+    </set>
+    where id = #{id}
+  </update>
+
   <select id="listArchives" resultType="com.itzpy.blog.dao.dos.Archives">
     select FROM_UNIXTIME(create_date / 1000, '%Y') as year,
            FROM_UNIXTIME(create_date / 1000, '%m') as month,

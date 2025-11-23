@@ -1,6 +1,8 @@
-# 博客项目开发笔记
+# 博客项目开发笔记 📝
 
-> 🛠️ 开发时使用1-3的那个前端文件，不要用上线的，因为后面对项目，数据库的表都有优化。
+> 🛠️ **开发提示**: 开发时使用1-3的那个前端文件，不要用上线的，因为后面对项目，数据库的表都有优化。
+
+---
 
 ## 1. 前置知识 ⚙️
 
@@ -8,8 +10,10 @@
 - Spring MVC
 - MyBatis Plus 或者 MyBatis，我个人用的是MyBatis实现对应接口
 
-> 💡 这样基本能做到看了接口文档需求自己实现对应的功能。  
+> 💡 **小贴士**: 这样基本能做到看了接口文档需求自己实现对应的功能。  
 > 比一味的抄代码效率和体验好很多。
+
+---
 
 ## 2. 项目配置相关 🔧
 
@@ -17,10 +21,14 @@
 2. 包、类的路径注意和扫描的路径相同（mapper.xml映射的时候）
 3. 确保MyBatis配置正确，mapper-locations路径与实际文件路径一致
 
+---
+
 ## 3. JWT相关 🔐
 
 1. 使用jwt工具类创建jwt的token令牌
-2. ⚠️ 注意直接给数据库插入用户账密数据的时候，回车键也会被插入（找了半个小时，我还以为是加密出错了）
+2. ⚠️ **重要提醒**: 注意直接给数据库插入用户账密数据的时候，回车键也会被插入（找了半个小时，我还以为是加密出错了）
+
+---
 
 ## 4. 拦截器配置相关 🚧
 
@@ -39,29 +47,33 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 }
 ```
 
-✅ 添加了必要的依赖注入：
+✅ **添加了必要的依赖注入**:
 - 注入了JWTUtils用于JWT token验证
 - 注入了RedisTemplate用于检查Redis中的用户信息
 
-✅ 完善了token验证逻辑：
+✅ **完善了token验证逻辑**:
 - 不仅验证JWT token的有效性，还检查Redis中是否存在对应的用户信息
 - 这样可以确保用户登录后、登出前才能访问受保护的资源
 - 如果用户已登出（Redis中的token被删除），即使JWT token本身有效也无法访问
 
-✅ 添加了@Component注解：
+✅ **添加了@Component注解**:
 - 使拦截器能够通过Spring进行依赖注入
+
+---
 
 ## 5. 登录相关 🔒
 
 1. 登录时候获取用户信息，创建一个currentUser方法，接收token参数
 2. 从客户端发送的HTTP请求头中获取名为Authorization的字段值，并将其作为token参数传入currentUser方法中，获取用户信息并返回给前端。注意WebMvcConfig配置中跨域配置，允许跨域请求
 3. 创建LoginInterceptor拦截器并在WebMvcConfig注册
-4. ✅ 注意放行以下请求路径：
+4. ✅ **注意放行以下请求路径**:
    - `/login/**`
    - `/articles/**` 和 `/articles`
    - `/tags/hot`
    - `/users/currentUser`
    - `/register`
+
+---
 
 ## 6. 跨域配置 🌐
 
@@ -71,10 +83,13 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 - ✅ 允许所有请求头
 - ✅ 允许携带凭证
 
+---
+
 ## 7. 错误处理 ⚠️
 
 统一使用Result对象返回错误信息，避免直接返回null或简单字符串，确保前后端数据交互的一致性。
 
+---
 
 ## 8. 账户注册时的动态插入sql 💾
 
@@ -103,9 +118,10 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 | `prefixOverrides` | 去除 SQL 语句开头的指定字符 | `prefixOverrides="AND "` 会去除 SQL 开头的 "AND " 字符串 |
 | `suffixOverrides` | 去除 SQL 语句结尾的指定字符 | `suffixOverrides=","` 会去除 SQL 结尾的逗号 |
 
-> 注意：我在实现账户注册时，产生token和保存redis使用的方法是调用登录的login方法。  
+> ⚠️ **重要提醒**: 我在实现账户注册时，产生token和保存redis使用的方法是调用登录的login方法。  
 > 这就导致我忘记了密码被加密的问题，导致在查表的时候一直找不到对应账户。
 
+---
 
 ## 9. 拦截器相关：
 
@@ -160,6 +176,8 @@ graph TD
 - **OPTIONS预检请求**：直接放行，确保跨域请求正常工作
 - **公开接口**：配置了明确的路径排除规则，确保无需认证即可访问
 
+---
+
 ### 9.3 安全性考虑 🔒
 
 1. **防止重放攻击**：JWT Token有过期时间限制
@@ -167,8 +185,98 @@ graph TD
 3. **敏感信息保护**：密码等敏感信息在数据库中加密存储
 4. **细粒度控制**：可以精确控制每个接口的访问权限
 
+---
 
-## 10.ThreadLocal存储用户信息以及防止内存泄漏：
+## 10. ThreadLocal存储用户信息以及防止内存泄漏 🧵
+
 1. **流程**：preHandle中设置，afterCompletion中删除。
 2. **ThreadLocal存储用户信息**：使用ThreadLocal存储用户信息（登陆成功后在需要登陆才能访问的路径中获取用户信息），从而避免了线程安全问题，每个线程都有自己的副本。
 3. **防止内存泄漏**：使用remove语句，确保线程退出时自动清理ThreadLocal变量。
+
+---
+
+## 11. 查询文章详情 📖
+
+### 11.1 所需 Mapper 组件
+
+需要调用以下 Mapper 组件完成文章详情查询：
+- ArticleMapper
+- TagMapper
+- ArticleBodyMapper
+- CategoryMapper
+- SysUserMapper
+
+### 11.2 查询流程
+
+查询流程相对简单，主要包括以下几个步骤：
+1. 通过各 Mapper 查询相关数据
+2. 将查询到的数据封装到对应的 VO 对象中
+3. Author 信息只需包含 nickname，无需单独封装 VO
+4. 最终将所有数据统一封装到 ArticleVo 中返回
+
+### 11.3 阅读次数更新策略 ⚙️
+
+#### 要求
+- ✅ 更新阅读次数时需要加锁，防止并发问题
+- ✅ 更新过程中出现问题不应影响用户阅读文章的主流程
+
+#### 解决方案
+采用异步处理方式，将阅读数更新操作放在线程池中执行，确保不影响用户的其他请求。
+
+#### 实现细节
+- 创建线程池配置类，并添加到 Spring 容器(@Configuration)，并在配置类上添加 `@EnableAsync` 注解
+- 创建一个线程池，并做如下配置：
+    
+```java
+@Bean("TaskExecutor")//线程池的名称
+public Executor asyncServiceExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    // 设置核心线程数
+    executor.setCorePoolSize(5);
+    // 设置最大线程数
+    executor.setMaxPoolSize(20);
+    // 配置队列大小
+    executor.setQueueCapacity(Integer.MAX_VALUE);
+    // 配置线程活跃时限
+    executor.setKeepAliveSeconds(60);
+    // 配置默认线程名称
+    executor.setThreadNamePrefix("张培阳的博客项目");
+    // 等待所有任务结束后再关闭线程池
+    executor.setWaitForTasksToCompleteOnShutdown(true);
+    // 执行初始化
+    executor.initialize();
+    return executor;
+}
+```
+    
+- 创建 ThreadService 服务类，将更新任务放在其方法中执行
+- 通过 `@Async("线程池名称")` 注解标记异步执行的方法
+- 注意确保线程池安全：阅读数更新时加锁（viewCounts == 数据库中的值）
+    
+```java
+@Async("taskExecutor")
+    public void updateArticleViewCount(ArticleMapper articleMapper, Article article) {
+        int viewCounts = article.getViewCounts();
+        Article articleUpdate = new Article();
+        BeanUtils.copyProperties(article, articleUpdate);
+
+        articleUpdate.setViewCounts(viewCounts + 1);
+        // 判断阅读数是否一致，一致时再进行更新操作，确保线程安全
+        if(viewCounts == articleMapper.getById(article.getId()).getViewCounts() ) {
+            articleMapper.update(articleUpdate);
+        }
+
+        try{
+            Thread.sleep(1000);
+            System.out.println("更新完成了...");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+```
+
+>mybatis 的update语句返回值是受影响的行数，因此判断是否更新成功
+    
+---
+    
+## 12.
