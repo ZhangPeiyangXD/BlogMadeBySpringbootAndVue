@@ -3,7 +3,7 @@ package com.itzpy.blog.controller;
 
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.utils.UserThreadLocal;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.params.PageParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +29,7 @@ public class ArticleController {
 
         return articleService.listArticle(pageParams);
     }
-
+    
 
     /**
      * 最热文章
@@ -48,7 +48,6 @@ public class ArticleController {
 
         return articleService.hotArticle(ArticleService.HOT_ARTICLE_NUM);
     }
-
 
 
     /**

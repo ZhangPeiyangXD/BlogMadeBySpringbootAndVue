@@ -3,13 +3,10 @@ package com.itzpy.blog.controller;
 
 import com.itzpy.blog.service.LoginService;
 import com.itzpy.blog.service.RegisterService;
-import com.itzpy.blog.vo.LoginUserVo;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.params.LoginParam;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;

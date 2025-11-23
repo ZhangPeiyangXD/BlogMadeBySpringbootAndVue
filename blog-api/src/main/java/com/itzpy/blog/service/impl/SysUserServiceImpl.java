@@ -5,10 +5,12 @@ import com.itzpy.blog.dao.mapper.SysUserMapper;
 import com.itzpy.blog.dao.pojo.SysUser;
 import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.utils.JWTUtils;
-import com.itzpy.blog.vo.ErrorCode;
+import com.itzpy.blog.dao.pojo.ErrorCode;
 import com.itzpy.blog.vo.LoginUserVo;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
+import com.itzpy.blog.vo.UserVo;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,26 @@ public class SysUserServiceImpl implements SysUserService {
         return sysUser;
     }
 
+
+    /**
+     * 根据id查询用户信息
+     * @param id 用户id
+     * @return 用户信息
+     */
+    @Override
+    public UserVo findUserVoById(Long id) {
+        SysUser sysUser = sysUserMapper.selectById(id);
+        if (sysUser == null){
+            sysUser = new SysUser();
+            sysUser.setId(1L);
+            sysUser.setAvatar("/static/img/logo.b3a48c0.png");
+            sysUser.setNickname("码神之路");
+        }
+        UserVo userVo  = new UserVo();
+        BeanUtils.copyProperties(sysUser,userVo);
+        userVo.setId(String.valueOf(sysUser.getId()));
+        return userVo;
+    }
     /**
      * 根据账号和密码查询用户
      * @param account 账号
@@ -96,4 +118,5 @@ public class SysUserServiceImpl implements SysUserService {
 
         return Result.success(loginUserVo);
     }
+
 }

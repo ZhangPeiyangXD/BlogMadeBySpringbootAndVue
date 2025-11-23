@@ -1,7 +1,7 @@
 package com.itzpy.blog.service;
 
 import com.itzpy.blog.dao.pojo.SysUser;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.params.LoginParam;
 import org.springframework.stereotype.Service;
 

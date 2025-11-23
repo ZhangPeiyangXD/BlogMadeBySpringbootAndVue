@@ -28,6 +28,15 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
 
 
     /**
+     * 根据id查询用户
+     * @param id 用户id
+     * @return 用户信息
+     */
+    @Select("select * from sys_user where id = #{id}")
+    SysUser selectById(Long id);
+
+
+    /**
      * 动态插入用户
      * @param sysUser 用户信息
      */

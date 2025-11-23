@@ -1,7 +1,7 @@
 package com.itzpy.blog.service.impl;
 
 import com.itzpy.blog.service.LogoutService;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;

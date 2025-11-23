@@ -1,13 +1,11 @@
 package com.itzpy.blog.service.impl;
 
-import com.alibaba.fastjson.JSON;
 import com.itzpy.blog.dao.mapper.SysUserMapper;
 import com.itzpy.blog.dao.pojo.SysUser;
-import com.itzpy.blog.service.LoginService;
 import com.itzpy.blog.service.RegisterService;
 import com.itzpy.blog.utils.JWTUtils;
-import com.itzpy.blog.vo.ErrorCode;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.ErrorCode;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.params.LoginParam;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.BeanUtils;

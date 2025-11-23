@@ -7,6 +7,7 @@ import com.itzpy.blog.dao.mapper.ArticleBodyMapper;
 import com.itzpy.blog.dao.mapper.ArticleMapper;
 import com.itzpy.blog.dao.mapper.CategoryMapper;
 import com.itzpy.blog.dao.pojo.Article;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.service.TagService;

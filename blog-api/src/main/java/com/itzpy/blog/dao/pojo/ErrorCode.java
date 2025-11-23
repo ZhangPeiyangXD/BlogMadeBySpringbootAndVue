@@ -1,4 +1,4 @@
-package com.itzpy.blog.vo;
+package com.itzpy.blog.dao.pojo;
 
 public enum  ErrorCode {
 

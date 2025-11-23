@@ -1,6 +1,6 @@
 package com.itzpy.blog.service;
 
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.TagVo;
 import org.springframework.stereotype.Service;
 

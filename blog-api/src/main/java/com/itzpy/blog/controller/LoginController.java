@@ -1,7 +1,7 @@
 package com.itzpy.blog.controller;
 
 import com.itzpy.blog.service.LoginService;
-import com.itzpy.blog.vo.Result;
+import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.params.LoginParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

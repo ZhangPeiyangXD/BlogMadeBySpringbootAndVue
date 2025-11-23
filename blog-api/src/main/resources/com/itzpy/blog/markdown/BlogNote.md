@@ -41,7 +41,7 @@
 ### 4.3 实现拦截逻辑
 
 #### 处理OPTIONS预检请求
-```
+```java
 if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
     return true;
 }
@@ -137,7 +137,7 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 5. **存储/删除用户信息**: 存储用户信息到thread中，在执行完一次请求后清除
 
 #### 工作流程
-```
+```mermaid
 graph TD
     A[请求到达] --> B{是否为OPTIONS请求?}
     B -->|是| C[直接放行]
@@ -224,59 +224,82 @@ graph TD
 采用异步处理方式，将阅读数更新操作放在线程池中执行，确保不影响用户的其他请求。
 
 #### 实现细节
-- 创建线程池配置类，并添加到 Spring 容器(@Configuration)，并在配置类上添加 `@EnableAsync` 注解
-- 创建一个线程池，并做如下配置：
-    
+- 配置线程池，并在配置类上添加 `@EnableAsync` 注解
+- 创建 ThreadService 服务类，将更新任务放在其方法中执行
+- 通过 `@Async` 注解标记异步执行的方法
+
+---
+
+## 12. 评论系统实现 💬
+
+### 12.1 评论数据结构设计
+
+评论系统采用两级结构：
+- 一级评论：直接对文章的评论
+- 二级评论：对一级评论的回复
+
+### 12.2 数据库表结构
+```sql
+CREATE TABLE comment (
+    id BIGINT PRIMARY KEY,
+    content TEXT NOT NULL,
+    create_date BIGINT NOT NULL,
+    article_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    parent_id BIGINT DEFAULT NULL,
+    to_uid BIGINT DEFAULT NULL,
+    level INT NOT NULL
+);
+```
+
+### 12.3 后端实现要点
+
+#### 评论查询逻辑
+1. 首先查询文章的一级评论（level=1）
+2. 然后为每个一级评论查询其二级评论（level=2）
+3. 通过to_uid字段关联二级评论到对应的一级评论
+4. 确保childrens字段不为null，当没有子评论时设置为空数组
+
+#### 关键代码示例
 ```java
-@Bean("TaskExecutor")//线程池的名称
-public Executor asyncServiceExecutor() {
-    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    // 设置核心线程数
-    executor.setCorePoolSize(5);
-    // 设置最大线程数
-    executor.setMaxPoolSize(20);
-    // 配置队列大小
-    executor.setQueueCapacity(Integer.MAX_VALUE);
-    // 配置线程活跃时限
-    executor.setKeepAliveSeconds(60);
-    // 配置默认线程名称
-    executor.setThreadNamePrefix("张培阳的博客项目");
-    // 等待所有任务结束后再关闭线程池
-    executor.setWaitForTasksToCompleteOnShutdown(true);
-    // 执行初始化
-    executor.initialize();
-    return executor;
+// 确保评论列表不为null
+if (commentList == null) {
+    commentList = new ArrayList<>();
+}
+
+// 确保childrens字段不为null
+for (CommentVo parentComment : parentComments) {
+    List<CommentVo> childComments = getChildComments(parentComment);
+    if (childComments == null) {
+        childComments = new ArrayList<>();
+    }
+    parentComment.setChildrens(childComments);
 }
 ```
-    
-- 创建 ThreadService 服务类，将更新任务放在其方法中执行
-- 通过 `@Async("线程池名称")` 注解标记异步执行的方法
-- 注意确保线程池安全：阅读数更新时加锁（viewCounts == 数据库中的值）
-    
-```java
-@Async("taskExecutor")
-    public void updateArticleViewCount(ArticleMapper articleMapper, Article article) {
-        int viewCounts = article.getViewCounts();
-        Article articleUpdate = new Article();
-        BeanUtils.copyProperties(article, articleUpdate);
 
-        articleUpdate.setViewCounts(viewCounts + 1);
-        // 判断阅读数是否一致，一致时再进行更新操作，确保线程安全
-        if(viewCounts == articleMapper.getById(article.getId()).getViewCounts() ) {
-            articleMapper.update(articleUpdate);
-        }
+### 12.4 前端注意事项（课程中直接给到前端BlogView.vue有问题）
 
-        try{
-            Thread.sleep(1000);
-            System.out.println("更新完成了...");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
+#### 前端处理null值
+```javascript
+// 在访问评论列表前检查是否存在
+if (comments && comments.length > 0) {
+    // 处理评论列表
+}
+
+// 在访问childrens前检查
+if (comment.childrens && comment.childrens.length > 0) {
+    // 处理子评论
+}
 ```
 
->mybatis 的update语句返回值是受影响的行数，因此判断是否更新成功
-    
+#### Vue组件安全访问
+```vue
+<!-- 使用v-if确保数据存在 -->
+<div v-if="comment.childrens">
+  <div v-for="child in comment.childrens" :key="child.id">
+    {{ child.content }}
+  </div>
+</div>
+```
+
 ---
-    
-## 12.
