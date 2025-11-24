@@ -33,4 +33,12 @@ public class TagController {
     public Result findAll() {
         return tagService.findAll();
     }
+
+
+    @GetMapping("/detail")
+    @LogAnnotation(module = "标签", operator = "获取所有标签详情")
+    public Result findAllDetail() {
+        return tagService.findAllDetail();
+    }
+
 }

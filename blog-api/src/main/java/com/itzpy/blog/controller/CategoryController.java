@@ -16,11 +16,25 @@ public class CategoryController {
     @Autowired
     private CategoryService categoryService;
 
+    /**
+     * 查询所有分类
+     * @return Result 所有分类列表
+     */
     @GetMapping()
     @LogAnnotation(module = "分类", operator = "获取分类列表")
     public Result categories() {
         return categoryService.findAll();
     }
 
+
+    /**
+     * 查询所有文章分类
+     * @return Result 所有文章分类列表
+     */
+    @GetMapping("/detail")
+    @LogAnnotation(module = "分类", operator = "获取所有文章分类")
+    public Result findAllDetail() {
+        return categoryService.findAllDetail();
+    }
 
 }

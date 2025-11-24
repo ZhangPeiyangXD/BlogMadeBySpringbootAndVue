@@ -68,6 +68,13 @@ public class TagServiceImpl implements TagService {
         return Result.success(copyList(tags));
     }
 
+    @Override
+    public Result findAllDetail() {
+        List<Tag> tags = tagMapper.findAll();
+
+        return Result.success(copyList(tags));
+    }
+
 
     /**
      * 拷贝列表
