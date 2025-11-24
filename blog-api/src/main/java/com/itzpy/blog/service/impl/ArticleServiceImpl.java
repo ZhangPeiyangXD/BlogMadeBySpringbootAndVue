@@ -203,7 +203,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setCreateDate(System.currentTimeMillis());
         // 修复可能的null值问题
         if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
-            article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
+            article.setCategoryId(articleParam.getCategory().getId());
         } else {
             article.setCategoryId(1L); // 设置默认分类ID
         }
@@ -212,11 +212,11 @@ public class ArticleServiceImpl implements ArticleService {
         List<TagVo> tagVoList = articleParam.getTags();
         if (tagVoList != null) {
             for(TagVo tagVo : tagVoList){
-                ArticleTag articleTag = new ArticleTag();
-                articleTag.setArticleId(articleId);
                 // 修复可能的null值问题
-                if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
-                    articleTag.setTagId(Long.valueOf(tagVo.getId()));
+                if (tagVo.getId() != null) {
+                    ArticleTag articleTag = new ArticleTag();
+                    articleTag.setArticleId(articleId);
+                    articleTag.setTagId(tagVo.getId());
                     articleTagMapper.insert(articleTag);
                 }
             }

@@ -60,7 +60,7 @@ blog-parent
 
 | 技术           | 版本    | 用途 |
 |--------------|-------|------|
-| Jdk          | 1.8   | 语言 |
+| JDK          | 1.8   | 编程语言 |
 | Spring Boot  | 2.7.3 | 应用框架 |
 | MyBatis Plus | 3.4.3 | ORM框架 |
 | MySQL        | 8.0   | 数据库 |
@@ -83,24 +83,28 @@ server:
 spring:
   application:
     name: zpy_blog
-  # 数据库配置
+  # 数据库（要配置数据库字符集为utf8mb4，这样子可以适配emoj表情）
   datasource:
     url: jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimeZone=UTC
     username: root
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
-  # 文件上传配置
+    hikari:
+      connection-init-sql: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci
+  # 数据库连接字符集配置
+  database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
+  # 文件上传
   servlet:
     multipart:
       max-request-size: 20MB
-      max-file-size: 2MB
-  # Redis配置
+      max-file-size: 3MB
+  # redis
   redis:
     host: localhost
     port: 6379
     database: 2
 
-# MyBatis Plus配置
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -117,9 +121,9 @@ jwt:
   token-expiration: 86400000  # 24小时毫秒数 (24 * 60 * 60 * 1000)
   secret: zpy_blog            # JWT 密钥
   salt: zpy_blog              # 加密盐值
-  
-# 默认作者ID配置
-authorId: 1
+
+# AuthorId自定义：
+authorId: 1234
 ```
 
 ## 🔍 核心代码分析
@@ -501,7 +505,7 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 2. **权限控制**：控制哪些接口可以公开访问，哪些需要认证
 3. **Token验证**：验证JWT Token的有效性
 4. **会话管理**：通过Redis检查用户会话状态
-5. **存储/删除用户信息**: 存储用户信息到thread中，在执行完一次请求后清除
+5. **存储/删除用户信息**：存储用户信息到ThreadLocal中，在执行完一次请求后清除
 
 #### 工作流程
 ```mermaid
@@ -556,7 +560,7 @@ graph TD
 
 ## 10. ThreadLocal存储用户信息以及防止内存泄漏 🧵
 
-1. **流程**：preHandle中设置，afterCompletion中删除。
+1. **流程**：在preHandle中设置用户信息，在afterCompletion中删除。
 2. **ThreadLocal存储用户信息**：使用ThreadLocal存储用户信息（登陆成功后在需要登陆才能访问的路径中获取用户信息），从而避免了线程安全问题，每个线程都有自己的副本。
 3. **防止内存泄漏**：使用remove语句，确保线程退出时自动清理ThreadLocal变量。
 
@@ -635,16 +639,16 @@ CREATE TABLE comment (
 ```java
 // 确保评论列表不为null
 if (commentList == null) {
-commentList = new ArrayList<>();
-        }
+    commentList = new ArrayList<>();
+}
 
 // 确保childrens字段不为null
-        for (CommentVo parentComment : parentComments) {
-List<CommentVo> childComments = getChildComments(parentComment);
+for (CommentVo parentComment : parentComments) {
+    List<CommentVo> childComments = getChildComments(parentComment);
     if (childComments == null) {
-childComments = new ArrayList<>();
-        }
-        parentComment.setChildrens(childComments);
+        childComments = new ArrayList<>();
+    }
+    parentComment.setChildrens(childComments);
 }
 ```
 
@@ -688,12 +692,12 @@ Blog_Write.vue中:
 
 #### 修复前代码
 ```html
-<el-checkbox v-for="t in tags" :key="t.id" :label="t.id" name="tags">t.tagName</el-checkbox>
+<el-checkbox v-for="t in tags" :key="t.id" :label="t" name="tags"> t.tagName </el-checkbox>
 ```
 
 #### 修复后代码
 ```html
-<el-checkbox v-for="t in tags" :key="t.id" :label="t.id" name="tags">{{t.tagName}}</el-checkbox>
+<el-checkbox v-for="t in tags" :key="t.id" :label="t" name="tags"> {{t.tagName}} </el-checkbox>
 ```
 
 ### 13.2 后端文章发布功能实现要点 🛠️
@@ -714,15 +718,15 @@ Blog_Write.vue中:
 ```java
 // 安全处理分类ID
 if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
-        article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
-        } else {
-        article.setCategoryId(1L); // 设置默认分类ID
+    article.setCategoryId(articleParam.getCategory().getId());
+} else {
+    article.setCategoryId(1L); // 设置默认分类ID
 }
 
 // 安全处理标签ID
-        if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
-        articleTag.setTagId(Long.valueOf(tagVo.getId()));
-        articleTagMapper.insert(articleTag);
+if (tagVo.getId() != null) {
+    articleTag.setTagId(tagVo.getId());
+    articleTagMapper.insert(articleTag);
 }
 ```
 
@@ -730,7 +734,7 @@ if (articleParam.getCategory() != null && articleParam.getCategory().getId() != 
 使用`@Value`注解为文章作者设置默认值：
 
 ```java
-@Value("1")  // 设置默认作者ID为1
+@Value("1234")  // 设置默认作者ID
 private Long authorId;
 ```
 
@@ -743,50 +747,41 @@ articleMapper.insert(article);
 Long articleId = article.getId();
 
 // 2. 插入标签关联信息
-for(TagVo tagVo : tagVoList){
-        if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
-ArticleTag articleTag = new ArticleTag();
-        articleTag.setArticleId(articleId);
-        articleTag.setTagId(Long.valueOf(tagVo.getId()));
-        articleTagMapper.insert(articleTag);
+List<TagVo> tagVoList = articleParam.getTags();
+if (tagVoList != null) {
+    for(TagVo tagVo : tagVoList){
+        // 修复可能的null值问题
+        if (tagVo.getId() != null) {
+            ArticleTag articleTag = new ArticleTag();
+            articleTag.setArticleId(articleId);
+            articleTag.setTagId(tagVo.getId());
+            articleTagMapper.insert(articleTag);
+        }
     }
-            }
+}
 
 // 3. 插入文章内容
 ArticleBody articleBody = new ArticleBody();
 articleBody.setArticleId(articleId);
 articleBody.setContent(articleParam.getBody().getContent());
-        articleBody.setContentHtml(articleParam.getBody().getContentHtml());
-        articleBodyMapper.insert(articleBody);
+articleBody.setContentHtml(articleParam.getBody().getContentHtml());
+articleBodyMapper.insert(articleBody);
 
 // 4. 更新文章与内容的关联
 article.setBodyId(articleBody.getId());
-        articleMapper.update(article);
+articleMapper.update(article);
 ```
 
 #### 常见异常处理
 
-##### 1. NumberFormatException处理
-当尝试将null或非法字符串转换为Long时会抛出此异常，需要进行空值检查：
-
-```java
-// 错误示例 - 会导致NumberFormatException
-@Value("${authorId}")  // 配置文件中不存在authorId属性
-private Long authorId;
-
-// 正确做法
-@Value("1")  // 直接设置默认值
-private Long authorId;
-```
-
-##### 2. 空指针异常处理
+##### 1. 空指针异常处理
 在处理对象属性时需要进行空值检查：
 
 ```java
 // 安全检查分类对象和其ID
 if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
-        article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
-        }
+    article.setCategoryId(articleParam.getCategory().getId());
+}
 ```
 
 ### 13.3 文章发布接口设计 📡
