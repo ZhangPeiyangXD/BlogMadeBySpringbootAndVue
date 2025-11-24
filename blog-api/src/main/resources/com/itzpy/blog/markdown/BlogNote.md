@@ -52,12 +52,15 @@ blog-parent
 
 ### 🏷️ 标签模块
 - 热门标签 `/tags/hot`
+- 所有标签 `/tags`
+- 标签详情 `/tags/detail`
+- 标签详情(根据ID) `/tags/detail/{id}`
 
 ## 🛠️ 技术栈
 
 | 技术           | 版本    | 用途 |
 |--------------|-------|------|
-| Jdk          | 1.8   | 语言
+| Jdk          | 1.8   | 语言 |
 | Spring Boot  | 2.7.3 | 应用框架 |
 | MyBatis Plus | 3.4.3 | ORM框架 |
 | MySQL        | 8.0   | 数据库 |
@@ -69,7 +72,7 @@ blog-parent
 | AOP          | -     | 面向切面编程 |
 | SLF4J        | -     | 日志框架 |
 
-## 核心配置
+## ⚙️ 核心配置
 
 ### application.yml
 
@@ -80,20 +83,24 @@ server:
 spring:
   application:
     name: zpy_blog
+  # 数据库配置
   datasource:
     url: jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimeZone=UTC
     username: root
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # 文件上传配置
   servlet:
     multipart:
       max-request-size: 20MB
       max-file-size: 2MB
+  # Redis配置
   redis:
     host: localhost
     port: 6379
     database: 2
 
+# MyBatis Plus配置
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -102,19 +109,22 @@ mybatis-plus:
 
 # 七牛云配置
 qiniu:
-  accessKey: 11
-  accessSecretKey: 22
+  accessKey: your_access_key
+  accessSecretKey: your_secret_key
 
 # JWT 自定义配置
 jwt:
   token-expiration: 86400000  # 24小时毫秒数 (24 * 60 * 60 * 1000)
   secret: zpy_blog            # JWT 密钥
   salt: zpy_blog              # 加密盐值
+  
+# 默认作者ID配置
+authorId: 1
 ```
 
-## 核心代码分析
+## 🔍 核心代码分析
 
-### 拦截器配置
+### 🌐 WebMVC配置
 
 ```java
 @Configuration
@@ -130,10 +140,32 @@ public class WebMVCConfig implements WebMvcConfigurer {
 }
 ```
 
-### 登录拦截器
+> ⚠️ **注意**: 拦截器配置目前被注释掉了，项目中暂时没有启用登录拦截器。
+
+### 🔒 登录拦截器
+
+登录拦截器是项目的安全核心组件，负责验证用户身份和权限控制。
 
 ```java
+@Component
 public class LoginInterceptor implements HandlerInterceptor {
+    
+    @Autowired
+    private JWTUtils jwtUtils;
+    
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private LoginService loginService;
+
+    /**
+     * 请求处理之前执行
+     * @param request 请求对象
+     * @param response 响应对象
+     * @param handler 处理器对象
+     * @return true表示继续处理请求，false表示拒绝处理请求
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String uri = request.getRequestURI();
@@ -143,8 +175,9 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 放行登录和注册请求
-        if (uri.startsWith("/login") || uri.equals("/register")) {
+        // 放行所有接口（由于前端存在问题，暂时全部放行）
+        if (uri.startsWith("/") || uri.equals("/register") ||
+            uri.equals("/comments/create/change")) {
             return true;
         }
 
@@ -155,6 +188,7 @@ public class LoginInterceptor implements HandlerInterceptor {
             String token = authorizationHeader.substring(7);
             Result result = validateJwtTokenAndCheckRedis(token);
             if (result != null) {
+                // token验证失败，返回错误信息
                 response.setContentType("application/json;charset=utf-8");
                 response.getWriter().print(JSON.toJSONString(result));
                 return false;
@@ -176,14 +210,92 @@ public class LoginInterceptor implements HandlerInterceptor {
         response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg())));
         return false;
     }
+
+    /**
+     * 验证JWT token并检查Redis中是否存在对应的用户信息
+     * @param token JWT token
+     * @return 如果验证失败返回Result对象，否则返回null表示验证成功
+     */
+    private Result validateJwtTokenAndCheckRedis(String token) {
+        // 检查token是否为空
+        if (StringUtils.isBlank(token)) {
+            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        }
+
+        // 验证JWT token
+        Map<String, Object> tokenMap = jwtUtils.checkToken(token);
+        if (tokenMap == null) {
+            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        }
+
+        // 检查Redis中是否存在对应的用户信息（验证用户是否已登出）
+        String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+        if (StringUtils.isBlank(userJson)) {
+            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        }
+
+        // 尝试解析用户信息
+        try {
+            SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
+            if (sysUser == null) {
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+            }
+        } catch (Exception e) {
+            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        }
+
+        // 验证成功
+        return null;
+    }
+
+    /**
+     * 请求处理完成后执行（删除用户线程，防止内存泄漏）
+     * @param request 请求对象
+     * @param response 响应对象
+     * @param handler 处理器对象
+     * @param ex 异常对象
+     */
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        // 请求处理完成后，清空当前线程中的用户信息
+        UserThreadLocal.remove();
+    }
 }
 ```
 
-### 评论服务实现
+#### 🛡️ 安全机制
+
+拦截器使用双重验证机制确保安全性：
+1. **JWT验证**：使用JWT工具类验证Token的签名和有效期
+2. **Redis会话验证**：检查Redis中是否存在对应的用户会话信息
+
+只有两个验证都通过，才认为用户身份有效。
+
+### 💬 评论服务实现
+
+评论服务负责处理文章评论的创建和查询。
 
 ```java
 @Service
 public class CommentServiceImpl implements CommentService {
+    
+    @Autowired
+    private CommentMapper commentMapper;
+    
+    @Autowired
+    private ArticleMapper articleMapper;
+    
+    @Autowired
+    private SysUserService sysUserService;
+
+    @Value("${authorId}")
+    private Long authorId;
+
+    /**
+     * 创建评论
+     * @param commentParam 评论参数
+     * @return result(评论结果)
+     */
     @Override
     public Result create(CommentParam commentParam) {
         // 检查参数
@@ -191,17 +303,20 @@ public class CommentServiceImpl implements CommentService {
             return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
         }
         
-        // 检查用户是否登录
-        if (UserThreadLocal.get() == null) {
-            return Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg());
-        }
-        
         // 构造评论对象
         Comment comment = new Comment();
         comment.setArticleId(commentParam.getArticleId());
         comment.setContent(commentParam.getContent());
-        comment.setAuthorId(UserThreadLocal.get().getId());
         comment.setCreateDate(System.currentTimeMillis());
+        
+        // 设置作者ID，如果用户已登录则使用登录用户ID，否则使用默认匿名用户ID
+        SysUser currentUser = UserThreadLocal.get();
+        if (currentUser != null) {
+            comment.setAuthorId(currentUser.getId());
+        } else {
+            // 匿名用户发表评论，使用默认作者ID (例如系统管理员ID)
+            comment.setAuthorId(authorId);
+        }
         
         // 判断是评论文章还是一级评论
         if (commentParam.getParent() == null || commentParam.getParent() == 0) {
@@ -230,7 +345,27 @@ public class CommentServiceImpl implements CommentService {
 }
 ```
 
-# 博客项目开发笔记 📝
+#### 🔄 评论结构设计
+
+评论系统采用两级结构：
+- 一级评论：直接对文章的评论
+- 二级评论：对一级评论的回复
+
+数据库表结构：
+```sql
+CREATE TABLE comment (
+    id BIGINT PRIMARY KEY,
+    content TEXT NOT NULL,
+    create_date BIGINT NOT NULL,
+    article_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    parent_id BIGINT DEFAULT NULL,
+    to_uid BIGINT DEFAULT NULL,
+    level INT NOT NULL
+);
+```
+
+# 🧪 博客项目开发笔记 📝
 
 > 🛠️ **开发提示**: 开发时使用1-3的那个前端文件，不要用上线的，因为后面对项目，数据库的表都有优化。
 
@@ -299,11 +434,11 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 2. 从客户端发送的HTTP请求头中获取名为Authorization的字段值，并将其作为token参数传入currentUser方法中，获取用户信息并返回给前端。注意WebMvcConfig配置中跨域配置，允许跨域请求
 3. 创建LoginInterceptor拦截器并在WebMvcConfig注册
 4. ✅ **注意放行以下请求路径**:
-   - `/login/**`
-   - `/articles/**` 和 `/articles`
-   - `/tags/hot`
-   - `/users/currentUser`
-   - `/register`
+    - `/login/**`
+    - `/articles/**` 和 `/articles`
+    - `/tags/hot`
+    - `/users/currentUser`
+    - `/register`
 
 ---
 
@@ -327,15 +462,15 @@ if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 
 ```xml
 <insert id="insertSelective">
-    insert into 表名
-    <trim prefix="(" suffix=")" suffixOverrides=",">
-        <if test="account != null"> account, </if>
-        ...
-    </trim>
-    <trim prefix="values (" suffix=")" suffixOverrides=",">
-        <if test="account != null"> #{account}, </if>
-        ...
-    </trim>
+  insert into 表名
+  <trim prefix="(" suffix=")" suffixOverrides=",">
+    <if test="account != null"> account, </if>
+    ...
+  </trim>
+  <trim prefix="values (" suffix=")" suffixOverrides=",">
+    <if test="account != null"> #{account}, </if>
+    ...
+  </trim>
 </insert>
 ```
 
@@ -473,14 +608,14 @@ graph TD
 ### 12.2 数据库表结构
 ```sql
 CREATE TABLE comment (
-    id BIGINT PRIMARY KEY,
-    content TEXT NOT NULL,
-    create_date BIGINT NOT NULL,
-    article_id BIGINT NOT NULL,
-    author_id BIGINT NOT NULL,
-    parent_id BIGINT DEFAULT NULL,
-    to_uid BIGINT DEFAULT NULL,
-    level INT NOT NULL
+                         id BIGINT PRIMARY KEY,
+                         content TEXT NOT NULL,
+                         create_date BIGINT NOT NULL,
+                         article_id BIGINT NOT NULL,
+                         author_id BIGINT NOT NULL,
+                         parent_id BIGINT DEFAULT NULL,
+                         to_uid BIGINT DEFAULT NULL,
+                         level INT NOT NULL
 );
 ```
 
@@ -500,16 +635,16 @@ CREATE TABLE comment (
 ```java
 // 确保评论列表不为null
 if (commentList == null) {
-    commentList = new ArrayList<>();
-}
+commentList = new ArrayList<>();
+        }
 
 // 确保childrens字段不为null
-for (CommentVo parentComment : parentComments) {
-    List<CommentVo> childComments = getChildComments(parentComment);
+        for (CommentVo parentComment : parentComments) {
+List<CommentVo> childComments = getChildComments(parentComment);
     if (childComments == null) {
-        childComments = new ArrayList<>();
-    }
-    parentComment.setChildrens(childComments);
+childComments = new ArrayList<>();
+        }
+        parentComment.setChildrens(childComments);
 }
 ```
 
@@ -532,9 +667,9 @@ if (comment.childrens && comment.childrens.length > 0) {
 ```html
 <!-- 使用v-if确保数据存在 -->
 <div v-if="comment.childrens">
-  <div v-for="child in comment.childrens" :key="child.id">
-    {{ child.content }}
-  </div>
+    <div v-for="child in comment.childrens" :key="child.id">
+        {{ child.content }}
+    </div>
 </div>
 ```
 
@@ -579,15 +714,15 @@ Blog_Write.vue中:
 ```java
 // 安全处理分类ID
 if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
-    article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
-} else {
-    article.setCategoryId(1L); // 设置默认分类ID
+        article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
+        } else {
+        article.setCategoryId(1L); // 设置默认分类ID
 }
 
 // 安全处理标签ID
-if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
-    articleTag.setTagId(Long.valueOf(tagVo.getId()));
-    articleTagMapper.insert(articleTag);
+        if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
+        articleTag.setTagId(Long.valueOf(tagVo.getId()));
+        articleTagMapper.insert(articleTag);
 }
 ```
 
@@ -609,24 +744,24 @@ Long articleId = article.getId();
 
 // 2. 插入标签关联信息
 for(TagVo tagVo : tagVoList){
-    if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
-        ArticleTag articleTag = new ArticleTag();
+        if (tagVo.getId() != null && !tagVo.getId().isEmpty()) {
+ArticleTag articleTag = new ArticleTag();
         articleTag.setArticleId(articleId);
         articleTag.setTagId(Long.valueOf(tagVo.getId()));
         articleTagMapper.insert(articleTag);
     }
-}
+            }
 
 // 3. 插入文章内容
 ArticleBody articleBody = new ArticleBody();
 articleBody.setArticleId(articleId);
 articleBody.setContent(articleParam.getBody().getContent());
-articleBody.setContentHtml(articleParam.getBody().getContentHtml());
-articleBodyMapper.insert(articleBody);
+        articleBody.setContentHtml(articleParam.getBody().getContentHtml());
+        articleBodyMapper.insert(articleBody);
 
 // 4. 更新文章与内容的关联
 article.setBodyId(articleBody.getId());
-articleMapper.update(article);
+        articleMapper.update(article);
 ```
 
 #### 常见异常处理
@@ -650,8 +785,8 @@ private Long authorId;
 ```java
 // 安全检查分类对象和其ID
 if (articleParam.getCategory() != null && articleParam.getCategory().getId() != null) {
-    article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
-}
+        article.setCategoryId(Long.valueOf(articleParam.getCategory().getId()));
+        }
 ```
 
 ### 13.3 文章发布接口设计 📡
@@ -685,30 +820,33 @@ POST /articles/publish
 #### 前端调用示例
 ```javascript
 let article = {
-  title: this.articleForm.title,
-  summary: this.articleForm.summary,
-  category: this.articleForm.category,
-  tags: tags,
-  body: {
-    content: this.articleForm.editor.value,
-    contentHtml: this.articleForm.editor.ref.d_render
-  }
+    title: this.articleForm.title,
+    summary: this.articleForm.summary,
+    category: this.articleForm.category,
+    tags: tags,
+    body: {
+        content: this.articleForm.editor.value,
+        contentHtml: this.articleForm.editor.ref.d_render
+    }
 }
 
 publishArticle(article, this.$store.state.token).then((data) => {
-  if(data.success){
-    that.$message({message: '发布成功啦', type: 'success', showClose: true})
-    that.$router.push({path: `/view/${data.data.id}`})
-  } else {
-    that.$message({message: '发布文章失败:'+data.msg, type: 'error', showClose: true});
-  }
+    if(data.success){
+        that.$message({message: '发布成功啦', type: 'success', showClose: true})
+        that.$router.push({path: `/view/${data.data.id}`})
+    } else {
+        that.$message({message: '发布文章失败:'+data.msg, type: 'error', showClose: true});
+    }
 })
 ```
 
 
-## 14.AOP日志记录相关：
+## 📊 14. AOP日志记录
 
-### 1. 创建日志记录注解：内含两个属性，一个是模块名，一个是方法名。   
+### 🏷️ 1. 创建日志记录注解
+
+注解包含两个属性：模块名和操作名。
+
 ```java
 @Target({ElementType.METHOD})           // 注解作用在方法上
 @Retention(RetentionPolicy.RUNTIME)     // 运行时生效
@@ -719,7 +857,10 @@ public @interface LogAnnotation {
 }
 ```
 
-### 2. 创建日志记录切面（aop）：切入点 + 环绕通知 + 日志记录方式（请求的方法,参数,ip，耗时）。    
+### 🔪 2. 创建日志记录切面
+
+切面包含切入点定义、环绕通知和日志记录实现。
+
 ```java    
 @Aspect
 @Component
@@ -780,7 +921,18 @@ public class LogAspect {
         log.info("===============log end================");
     }
 }
+```
 
+#### 📌 使用示例
+
+在控制器方法上添加 [@LogAnnotation](file:///D:/blog_learn/myBlog/blog-parent/blog-api/src/main/java/com/itzpy/blog/aop/LogAnnotation.java) 注解：
+
+```java
+@PostMapping
+@LogAnnotation(module = "文章", operator = "文章列表查询")
+public Result listArticle(@RequestBody PageParams pageParams) {
+    return articleService.listArticle(pageParams);
+}
 ```
 
 
@@ -862,9 +1014,9 @@ public class QiniuUtils {
         // 构造一个带指定 Region 对象的配置类
         Configuration cfg = new Configuration(Region.huanan());
         UploadManager uploadManager = new UploadManager(cfg);
-        
+
         String bucket = "blog-of-zpy";
-        
+
         try {
             byte[] uploadBytes = file.getBytes();
             Auth auth = Auth.create(accessKey, accessSecretKey);
@@ -896,3 +1048,23 @@ qiniu:
 2. 文件名通过UUID生成确保唯一性，避免文件名冲突
 3. 上传成功后返回完整URL，前端可直接使用
 4. 错误处理：当文件名为空或上传失败时会返回相应的错误码
+
+## 🐞 16. 前端路由问题排查
+
+### 问题描述
+前端路由出现问题，标签的ID参数无法正确传递到后端，导致查询标签详情的接口在文档中无法体现，但通过Postman测试正常。
+
+### 问题分析
+1. 前端路由配置可能存在问题
+2. 参数传递方式可能不正确
+3. URL路径可能存在匹配问题
+
+### 解决方案（我是没解决，提供一下思路）
+1. 检查前端路由配置，确保路径参数正确传递
+2. 确认组件间参数传递方式是否正确
+3. 验证URL路径与后端接口是否匹配
+
+### 验证方法
+- 使用浏览器开发者工具检查网络请求
+- 确认请求URL是否包含正确的标签ID
+- 检查请求参数是否正确传递

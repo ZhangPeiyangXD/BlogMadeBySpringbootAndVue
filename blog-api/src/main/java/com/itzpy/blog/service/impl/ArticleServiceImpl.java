@@ -1,6 +1,7 @@
 package com.itzpy.blog.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itzpy.blog.dao.dos.Archives;
 import com.itzpy.blog.dao.mapper.ArticleBodyMapper;
@@ -19,6 +20,7 @@ import org.joda.time.DateTime;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,8 @@ public class ArticleServiceImpl implements ArticleService {
     private CategoryMapper categoryMapper;
     @Autowired
     ArticleTagMapper articleTagMapper;
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
 
 
     @Value("${authorId}")
@@ -55,7 +59,7 @@ public class ArticleServiceImpl implements ArticleService {
      * @param pageParams  分页参数
      * @return result(文章列表)
      */
-    @Override
+    /*@Override
     public Result listArticle(PageParams pageParams) {
         //分页查询article数据库表
         Page<Article> page = new Page<>(pageParams.getPage(), pageParams.getPageSize());
@@ -92,7 +96,26 @@ public class ArticleServiceImpl implements ArticleService {
 
         return Result.success(articleVos);
     }
+*/
+    @Override
+    public Result listArticle(PageParams pageParams) {
+        Page<Article> page = new Page<>(pageParams.getPage(),pageParams.getPageSize());
 
+        IPage<Article> articleIPage = articleMapper.listArticle(
+                page,
+                pageParams.getCategoryId(),
+                pageParams.getTagId(),
+                pageParams.getYear(),
+                pageParams.getMonth());
+        List<Article> records = articleIPage.getRecords();
+        for (Article record : records) {
+            String viewCount = (String) redisTemplate.opsForHash().get("view_count", String.valueOf(record.getId()));
+            if (viewCount != null){
+                record.setViewCounts(Integer.parseInt(viewCount));
+            }
+        }
+        return Result.success(copyList(records,true,true));
+    }
 
     /**
      * 查询最热文章
