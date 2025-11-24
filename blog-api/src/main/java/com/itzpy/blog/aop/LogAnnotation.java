@@ -9,6 +9,4 @@ import java.lang.annotation.*;
 public @interface LogAnnotation {
     String module() default "";
     String operator() default "";
-
-
 }

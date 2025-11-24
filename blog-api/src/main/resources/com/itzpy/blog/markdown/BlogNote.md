@@ -1,61 +1,73 @@
-# 博客项目笔记
+# 📝 博客项目笔记
 
-## 项目结构
+## 🗂️ 项目结构
 
 ```
 blog-parent
 ├── blog-api
 │   ├── src/main/java/com/itzpy/blog
-│   │   ├── config
-│   │   ├── controller
-│   │   ├── dao
-│   │   │   ├── dos
-│   │   │   ├── mapper
-│   │   │   └── pojo
-│   │   ├── handler
-│   │   ├── interceptor
-│   │   ├── service
-│   │   │   └── impl
-│   │   ├── utils
-│   │   ├── vo
-│   │   │   ├── params
-│   │   │   └── vo
-│   │   └── BlogApp.java
-│   └── src/main/resources
-│       └── mapper
-└── pom.xml
+│   │   ├── aop                    # 面向切面编程相关
+│   │   ├── config                 # 配置类
+│   │   ├── controller             # 控制层
+│   │   ├── dao                    # 数据访问层
+│   │   │   ├── dos                # 数据传输对象
+│   │   │   ├── mapper             # MyBatis映射接口
+│   │   │   └── pojo               # 持久化对象
+│   │   ├── handler                # 全局异常处理器
+│   │   ├── interceptor            # 拦截器
+│   │   ├── service                # 业务逻辑层
+│   │   │   └── impl               # 业务逻辑实现
+│   │   ├── utils                  # 工具类
+│   │   ├── vo                     # 视图对象
+│   │   │   ├── params             # 请求参数对象
+│   │   │   └── vo                 # 响应视图对象
+│   │   └── BlogApp.java          # 应用启动类
+│   └── src/main/resources         # 资源文件
+│       ├── com/itzpy/blog         # MyBatis XML映射文件
+│       │   ├── dao/mapper         # Mapper XML文件
+│       │   └── markdown           # Markdown文档
+│       └── application.yml        # 应用配置文件
+└── pom.xml                       # Maven配置文件
 ```
 
-## 功能模块
+## 🧩 功能模块
 
-### 用户认证模块
+### 🔐 用户认证模块
 - 登录 `/login`
 - 注册 `/register`
 - 登出 `/logout`
 - JWT Token验证
 
-### 文章模块
+### 📰 文章模块
 - 文章列表 `/articles`
 - 文章详情 `/articles/{id}`
-- 热门文章 `/tags/hot`
+- 热门文章 `/articles/hot`
+- 最新文章 `/articles/new`
+- 文章归档 `/articles/listArchives`
 - 发布文章 `/articles/publish`
 
-### 评论模块
+### 💬 评论模块
 - 评论列表 `/comments/article/{id}`
 - 发表评论 `/comments/create/change`
 
-### 标签模块
+### 🏷️ 标签模块
 - 热门标签 `/tags/hot`
 
-## 技术栈
+## 🛠️ 技术栈
 
-- Spring Boot 2.7.3
-- MyBatis Plus 3.4.3
-- MySQL 8.0
-- Redis
-- JWT
-- FastJSON
-- Maven
+| 技术           | 版本    | 用途 |
+|--------------|-------|------|
+| Jdk          | 1.8   | 语言
+| Spring Boot  | 2.7.3 | 应用框架 |
+| MyBatis Plus | 3.4.3 | ORM框架 |
+| MySQL        | 8.0   | 数据库 |
+| Redis        | -     | 缓存/会话管理 |
+| JWT          | -     | Token认证 |
+| FastJSON     | -     | JSON处理 |
+| Maven        | -     | 项目构建 |
+| Lombok       | -     | 简化Java代码 |
+| AOP          | -     | 面向切面编程 |
+| SLF4J        | -     | 日志框架 |
 
 ## 核心配置
 
@@ -694,4 +706,73 @@ publishArticle(article, this.$store.state.token).then((data) => {
 ```
 
 
-## 14.AOP开启日志：
+## 14.AOP日志记录相关：
+
+### 1. 创建日志记录注解：内含两个属性，一个是模块名，一个是方法名。   
+```java
+@Target({ElementType.METHOD})           // 注解作用在方法上
+@Retention(RetentionPolicy.RUNTIME)     // 运行时生效
+@Documented                             // 文档生成时，保留注解
+public @interface LogAnnotation {
+    String module() default "";
+    String operator() default "";
+}
+```
+
+### 2. 创建日志记录切面（aop）：切入点 + 环绕通知 + 日志记录方式（请求的方法,参数,ip，耗时）。    
+```java    
+@Aspect
+@Component
+@Slf4j
+public class LogAspect {
+    @Pointcut("@annotation(com.itzpy.blog.aop.LogAnnotation)")
+    public void log() {}
+
+    @Around("log()")
+    public Object printLog(ProceedingJoinPoint joinPoint) throws Throwable{
+        long begin = System.currentTimeMillis();
+
+        Object result = joinPoint.proceed();
+
+        long end = System.currentTimeMillis();
+        long time = end - begin;
+
+        //保存日志
+        recordLog(joinPoint,time);
+
+        return result;
+    }
+
+    private void recordLog(ProceedingJoinPoint joinPoint, long time) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        LogAnnotation logAnnotation = method.getAnnotation(LogAnnotation.class);
+
+        log.info("===============log start================");
+        log.info("module:{}", logAnnotation.module());
+        log.info("operator:{}", logAnnotation.operator());
+
+        // 请求的方法名
+        String className = joinPoint.getTarget().getClass().getName();
+        String methodName = signature.getName();
+        log.info("request method:{}", className + "." + methodName + "()");
+
+        // 请求的参数
+        Object[] args = joinPoint.getArgs();
+        String params = JSON.toJSONString(args[0]);
+        log.info("params:{}", params);
+
+        //获取request，设置ip地址
+        HttpServletRequest request = HttpContextUtils.getHttpServletRequest();
+        log.info("ip:{}", IpUtils.getIpAddr(request));
+
+        log.info("execute time:{} ms", time);
+        log.info("===============log end================");
+    }
+}
+
+```
+
+
+## 15. 文章图片上传：
+1. 接口: `POST /upload`

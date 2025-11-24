@@ -9,7 +9,8 @@ public enum  ErrorCode {
     NO_PERMISSION(70001,"无访问权限"),
     SESSION_TIME_OUT(90001,"会话超时"),
     NO_LOGIN(90002,"未登录"),
-    SYSTEM_ERROR(50001,"系统异常"),;
+    SYSTEM_ERROR(50001,"系统异常"),
+    UPLOAD_ERROR(20001,"上传失败" );
 
     private int code;
     private String msg;

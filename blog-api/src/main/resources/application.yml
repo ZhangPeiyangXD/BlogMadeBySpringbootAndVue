@@ -14,7 +14,7 @@ spring:
   servlet:
     multipart:
       max-request-size: 20MB
-      max-file-size: 2MB
+      max-file-size: 3MB
   # redis
   redis:
     host: localhost
@@ -30,8 +30,8 @@ mybatis-plus:
 
 # 七牛云配置
 qiniu:
-  accessKey: 11
-  accessSecretKey: 22
+  accessKey: MeFdLEjuVOdc5GeKBWiJS1Ml40w5utJmUsYZs6rK
+  accessSecretKey: EQ3swI5vZ9Xo8bE56WeQNLEnX2fPtiY2sdRT81wN
 
 # JWT 自定义配置
 jwt:
