@@ -31,6 +31,13 @@ public class CategoryServiceImpl implements CategoryService {
         return Result.success(copyList(categorieList));
     }
 
+    @Override
+    public Result findDetailById(Long id) {
+        CategoryVo categoryVo = categoryMapper.findCategoryById(id);
+
+        return Result.success(categoryVo);
+    }
+
 
     public CategoryVo copy(Category category){
         CategoryVo categoryVo = new CategoryVo();

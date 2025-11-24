@@ -75,6 +75,13 @@ public class TagServiceImpl implements TagService {
         return Result.success(copyList(tags));
     }
 
+    @Override
+    public Result findDetailById(Long id) {
+        TagVo tagVo = tagMapper.findCategoryById(id);
+
+        return Result.success(tagVo);
+    }
+
 
     /**
      * 拷贝列表

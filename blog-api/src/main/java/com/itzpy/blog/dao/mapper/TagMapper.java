@@ -42,4 +42,11 @@ public interface TagMapper extends BaseMapper<Tag> {
      * @return List<TagVo> 标签列表
      */
     List<TagVo> findTagByIds(List<Long> tagIds);
+
+    /**
+     * 根据标签id查询标签
+     * @param id 标签id
+     */
+    @Select("select * from tag where id = #{id}")
+    TagVo findCategoryById(Long id);
 }

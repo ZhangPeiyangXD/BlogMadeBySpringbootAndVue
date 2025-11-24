@@ -1,6 +1,7 @@
 package com.itzpy.blog.controller;
 
 import com.itzpy.blog.aop.LogAnnotation;
+import com.itzpy.blog.dao.pojo.ErrorCode;
 import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.service.CommentService;
 import com.itzpy.blog.vo.params.CommentParam;
@@ -23,6 +24,9 @@ public class CommentController {
     @GetMapping("/article/{id}")
     @LogAnnotation(module = "评论", operator = "查询文章的评论列表")
     public Result comments(@PathVariable("id") Long id) {
+        if (id == null || id <= 0) {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
         return commentService.commentsByArticleId(id);
     }
 

@@ -61,6 +61,29 @@ public class ArticleServiceImpl implements ArticleService {
         Page<Article> page = new Page<>(pageParams.getPage(), pageParams.getPageSize());
         LambdaQueryWrapper<Article> queryWrapper = new LambdaQueryWrapper<>();
 
+        //按分类查询时传入CategoryId（不传递则展示所有分类对应所有文章）
+        if(pageParams.getCategoryId() != null){
+            queryWrapper.eq(Article::getCategoryId, pageParams.getCategoryId());
+        }
+
+        //按标签查询时传入TagId（不传递则展示所有标签对应所有文章）
+        List<Long> articleIdList = new ArrayList<>();
+        if(pageParams.getTagId() != null){
+            LambdaQueryWrapper<ArticleTag> articleTagLambdaQueryWrapper = new LambdaQueryWrapper<>();
+            articleTagLambdaQueryWrapper.eq(ArticleTag::getTagId, pageParams.getTagId());
+
+            // 把文章列表转换成文章id的集合
+            List<ArticleTag> articleTagList = articleTagMapper.selectList(articleTagLambdaQueryWrapper);
+            for(ArticleTag articleTag : articleTagList){
+                articleIdList.add(articleTag.getArticleId());
+            }
+
+            // 加入到查询条件中
+            if(!articleIdList.isEmpty()){
+                queryWrapper.in(Article::getId, articleIdList);
+            }
+        }
+
         //按照创建日期和权重进行排序
         queryWrapper.orderByDesc(Article::getWeight, Article::getCreateDate);
         Page<Article> articlePage = articleMapper.selectPage(page, queryWrapper);

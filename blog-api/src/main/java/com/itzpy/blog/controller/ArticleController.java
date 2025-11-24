@@ -4,6 +4,7 @@ package com.itzpy.blog.controller;
 import com.alibaba.fastjson.spi.Module;
 import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.dao.pojo.ArticleMessage;
+import com.itzpy.blog.dao.pojo.ErrorCode;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.utils.UserThreadLocal;
 import com.itzpy.blog.dao.pojo.Result;
@@ -77,6 +78,9 @@ public class ArticleController {
     @PostMapping("/view/{id}")
     @LogAnnotation(module = "文章", operator = "文章详情查询")
     public Result findArticleById(@PathVariable("id") Long id) {
+        if (id == null || id <= 0) {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
         return articleService.findArticleById(id);
     }
 

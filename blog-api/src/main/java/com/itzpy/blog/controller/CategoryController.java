@@ -6,6 +6,7 @@ import com.itzpy.blog.service.CategoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,8 +34,19 @@ public class CategoryController {
      */
     @GetMapping("/detail")
     @LogAnnotation(module = "分类", operator = "获取所有文章分类")
-    public Result findAllDetail() {
+    public Result categoriesDetail() {
         return categoryService.findAllDetail();
     }
 
+
+    /**
+     * 根据id查询文章分类
+     * @param id 分类id
+     * @return Result 分类详情
+     */
+    @GetMapping("/detail/{id}")
+    @LogAnnotation(module = "分类", operator = "获取单个文章分类详情")
+    public Result CategoryDetailById(@PathVariable("id") Long id) {
+        return categoryService.findDetailById(id);
+    }
 }

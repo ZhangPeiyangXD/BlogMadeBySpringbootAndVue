@@ -36,4 +36,12 @@ public interface TagService {
      * @return Result 所有标签详情列表
      */
     Result findAllDetail();
+
+
+    /**
+     * 根据id查询标签详情
+     * @param id 标签id
+     * @return Result 标签详情
+     */
+    Result findDetailById(Long id);
 }

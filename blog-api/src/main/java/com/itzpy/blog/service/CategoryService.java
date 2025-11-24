@@ -8,4 +8,6 @@ public interface CategoryService {
     Result findAll();
 
     Result findAllDetail();
+
+    Result findDetailById(Long id);
 }
