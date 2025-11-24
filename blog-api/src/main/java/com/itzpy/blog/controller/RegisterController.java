@@ -1,6 +1,7 @@
 package com.itzpy.blog.controller;
 
 
+import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.service.LoginService;
 import com.itzpy.blog.service.RegisterService;
 import com.itzpy.blog.dao.pojo.Result;
@@ -28,9 +29,8 @@ public class RegisterController {
      * @return result(token)
      */
     @PostMapping
+    @LogAnnotation(module = "注册", operator = "用户注册")
     public Result register(@RequestBody LoginParam  loginParam) {
-      log.info("用户注册:{}",  loginParam);
-
       if(registerService.register(loginParam)!= null) {
           return registerService.register(loginParam);
       }

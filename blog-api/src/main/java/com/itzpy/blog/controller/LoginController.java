@@ -1,5 +1,6 @@
 package com.itzpy.blog.controller;
 
+import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.service.LoginService;
 import com.itzpy.blog.dao.pojo.Result;
 import com.itzpy.blog.vo.params.LoginParam;
@@ -23,9 +24,8 @@ public class LoginController {
      * @return result(登录成功)
      */
     @PostMapping
+    @LogAnnotation(module = "登录", operator = "登录")
     public Result login(@RequestBody LoginParam loginParam){
-        log.info("用户登录");
-
         return loginService.login(loginParam);
     }
 

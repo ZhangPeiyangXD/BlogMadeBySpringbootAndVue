@@ -1,5 +1,6 @@
 package com.itzpy.blog.controller;
 
+import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.service.LogoutService;
 import com.itzpy.blog.dao.pojo.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +24,8 @@ public class LogoutController {
      * @return result(登出成功)
      */
     @GetMapping
+    @LogAnnotation(module = "登出", operator = "登出")
     public Result logout(@RequestHeader("Authorization") String token){
-        log.info("正在登出...");
-
         return logoutService.logout(token);
     }
 }

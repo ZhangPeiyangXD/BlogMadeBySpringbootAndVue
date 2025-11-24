@@ -1,5 +1,6 @@
 package com.itzpy.blog.controller;
 
+import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.dao.pojo.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +21,8 @@ public class UserController {
      */
     // @RequestHeader("Authorization") 作用：获取请求头中的Authorization字段的值
     @GetMapping("/currentUser")
+    @LogAnnotation(module = "用户", operator = "获取当前登录用户信息")
     public Result currentUser(@RequestHeader("Authorization") String token){
-        log.info("正在获取登陆的用户头部信息的token：{}", token);
-
         return sysUserService.findUserByToken(token);
     }
 }

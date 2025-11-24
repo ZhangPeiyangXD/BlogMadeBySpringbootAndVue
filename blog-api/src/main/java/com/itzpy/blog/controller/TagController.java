@@ -1,5 +1,6 @@
 package com.itzpy.blog.controller;
 
+import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.service.TagService;
 import com.itzpy.blog.dao.pojo.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +18,8 @@ public class TagController {
     private TagService tagService;
 
     @GetMapping("/hot")
+    @LogAnnotation(module = "标签", operator = "获取热门标签")
     public Result hot() {
-        log.info("查询最热标签");
-
         return tagService.hot(HOT_TAG_NUM);
     }
 
@@ -29,9 +29,8 @@ public class TagController {
      * @return Result<List<TagVo>> 标签列表
      */
     @GetMapping
+    @LogAnnotation(module = "标签", operator = "获取所有标签")
     public Result findAll() {
-        log.info("查询所有标签");
-
         return tagService.findAll();
     }
 }
