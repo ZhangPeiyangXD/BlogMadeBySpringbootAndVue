@@ -1,5 +1,6 @@
 package com.itzpy.blog.controller;
 
+import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.dao.pojo.ErrorCode;
 import com.itzpy.blog.service.UploadService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ public class UploadController {
     private UploadService uploadService;
 
     @PostMapping
+    @LogAnnotation(module = "上传", operator = "上传图片")
     public Result upload(@RequestParam("image") MultipartFile file) {
         return uploadService.upload(file);
     }

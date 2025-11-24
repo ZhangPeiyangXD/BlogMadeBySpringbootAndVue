@@ -10,6 +10,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
@@ -52,8 +53,18 @@ public class LogAspect {
 
         // 请求的参数
         Object[] args = joinPoint.getArgs();
-        String params = JSON.toJSONString(args[0]);
-        log.info("params:{}", params);
+        if(args != null && args.length > 0) {
+            String params = "";
+            Object arg = args[0];
+            // 特殊处理MultipartFile类型参数，避免序列化异常
+            if (arg instanceof MultipartFile) {
+                MultipartFile file = (MultipartFile) arg;
+                params = "{\"fileName\":\"" + file.getOriginalFilename() + "\", \"size\":\"" + file.getSize() + "\"}";
+            } else {
+                params = JSON.toJSONString(arg);
+            }
+            log.info("params:{}", params);
+        }
 
         //获取request，设置ip地址
         HttpServletRequest request = HttpContextUtils.getHttpServletRequest();

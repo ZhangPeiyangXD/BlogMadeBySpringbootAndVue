@@ -757,10 +757,20 @@ public class LogAspect {
         String methodName = signature.getName();
         log.info("request method:{}", className + "." + methodName + "()");
 
-        // 请求的参数
+        // 请求的参数（要考虑无参数，参数是文件类型等特殊情况）
         Object[] args = joinPoint.getArgs();
-        String params = JSON.toJSONString(args[0]);
-        log.info("params:{}", params);
+        if(args != null && args.length > 0) {
+            String params = "";
+            Object arg = args[0];
+            // 特殊处理MultipartFile类型参数，避免序列化异常
+            if (arg instanceof MultipartFile) {
+                MultipartFile file = (MultipartFile) arg;
+                params = "{\"fileName\":\"" + file.getOriginalFilename() + "\", \"size\":\"" + file.getSize() + "\"}";
+            } else {
+                params = JSON.toJSONString(arg);
+            }
+            log.info("params:{}", params);
+        }
 
         //获取request，设置ip地址
         HttpServletRequest request = HttpContextUtils.getHttpServletRequest();
@@ -774,5 +784,115 @@ public class LogAspect {
 ```
 
 
-## 15. 文章图片上传：
-1. 接口: `POST /upload`
+## 🖼️ 15. 文章图片上传
+
+### 📡 接口信息
+- **URL**: `POST /upload`
+- **参数**: `image` (MultipartFile类型)
+- **返回**: 上传后的图片访问URL
+
+### 🧠 实现原理
+图片上传功能通过七牛云对象存储实现，避免占用服务器存储空间。整个流程如下：
+
+1. 前端选择图片文件并发起POST请求到`/upload`接口
+2. 后端生成唯一文件名（使用UUID + 原文件后缀）
+3. 调用七牛云SDK将文件上传到云存储
+4. 返回完整的图片访问URL给前端
+
+### 📁 核心代码
+
+#### UploadController.java
+```java
+@RestController
+@RequestMapping("/upload")
+public class UploadController {
+    @Autowired
+    private UploadService uploadService;
+
+    @PostMapping
+    @LogAnnotation(module = "上传", operator = "上传图片")
+    public Result upload(@RequestParam("image") MultipartFile file) {
+        return uploadService.upload(file);
+    }
+}
+```
+
+#### UploadServiceImpl.java
+```java
+@Service
+public class UploadServiceImpl implements UploadService {
+    @Autowired
+    private QiniuUtils qiniuUtils;
+
+    @Override
+    public Result upload(MultipartFile file) {
+        // 获取原始文件名
+        String originalFilename = file.getOriginalFilename();
+        String fileName = null;
+        if (originalFilename != null) {
+            fileName = UUID.randomUUID().toString() + "."
+                    + originalFilename.substring(originalFilename.lastIndexOf(".") + 1);
+        } else {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
+
+        // 上传文件到七牛云，降低自身服务器的负载
+        boolean upload = qiniuUtils.upload(file, fileName);
+        if (upload) {
+            return Result.success(QiniuUtils.url + fileName);
+        }
+        return Result.fail(ErrorCode.UPLOAD_ERROR.getCode(), ErrorCode.UPLOAD_ERROR.getMsg());
+    }
+}
+```
+
+#### QiniuUtils.java
+```java
+@Component
+public class QiniuUtils {
+    // 七牛云访问域名
+    public static final String url = "http://t67owqh6r.hn-bkt.clouddn.com/";
+
+    @Value("${qiniu.accessKey}")
+    private String accessKey;
+    @Value("${qiniu.accessSecretKey}")
+    private String accessSecretKey;
+
+    public boolean upload(MultipartFile file, String fileName) {
+        // 构造一个带指定 Region 对象的配置类
+        Configuration cfg = new Configuration(Region.huanan());
+        UploadManager uploadManager = new UploadManager(cfg);
+        
+        String bucket = "blog-of-zpy";
+        
+        try {
+            byte[] uploadBytes = file.getBytes();
+            Auth auth = Auth.create(accessKey, accessSecretKey);
+            String upToken = auth.uploadToken(bucket);
+            Response response = uploadManager.put(uploadBytes, fileName, upToken);
+            // 解析上传成功的结果
+            DefaultPutRet putRet = JSON.parseObject(response.bodyString(), DefaultPutRet.class);
+            return true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return false;
+    }
+}
+```
+
+### ⚙️ 配置信息
+在 [application.yml](file:///D:/blog_learn/myBlog/blog-parent/blog-api/src/main/resources/application.yml) 中配置七牛云相关信息：
+
+```yaml
+# 七牛云配置
+qiniu:
+  accessKey: your_access_key
+  accessSecretKey: your_secret_key
+```
+
+### 📝 注意事项
+1. 七牛云提供的默认URL是HTTP开头的，如需HTTPS请在七牛云控制台配置
+2. 文件名通过UUID生成确保唯一性，避免文件名冲突
+3. 上传成功后返回完整URL，前端可直接使用
+4. 错误处理：当文件名为空或上传失败时会返回相应的错误码

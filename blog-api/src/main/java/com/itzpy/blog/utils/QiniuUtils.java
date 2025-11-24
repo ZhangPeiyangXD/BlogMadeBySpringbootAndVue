@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Component
 public class QiniuUtils {
 
-    public static  final String url = "https://portal.qiniu.com/cdn/domain/t67owqh6r.hn-bkt.clouddn.com";
+    public static  final String url = "http://t67owqh6r.hn-bkt.clouddn.com/";
 
     @Value("${qiniu.accessKey}")
     private  String accessKey;
