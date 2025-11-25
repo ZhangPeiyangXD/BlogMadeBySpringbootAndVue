@@ -45,6 +45,8 @@ blog-parent
 - 最新文章 `/articles/new`
 - 文章归档 `/articles/listArchives`
 - 发布文章 `/articles/publish`
+- 删除文章 `/articles/delete/{id}`
+- 修改文章 `/articles/change/{id}`
 
 ### 💬 评论模块
 - 评论列表 `/comments/article/{id}`
@@ -124,6 +126,11 @@ jwt:
 
 # AuthorId自定义：
 authorId: 1234
+
+# 热门标签数量配置
+hot:
+  tag:
+    num: 6
 ```
 
 ## 🔍 核心代码分析
@@ -133,18 +140,36 @@ authorId: 1234
 ```java
 @Configuration
 public class WebMVCConfig implements WebMvcConfigurer {
+    
+    @Autowired
+    private LoginInterceptor loginInterceptor;
+    
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        // 跨域配置
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:8080")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+    }
+
+    //添加自定义拦截器，用于处理登录和JWT验证逻辑
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new LoginInterceptor())
-                .addPathPatterns("/**")
-                .excludePathPatterns("/login**", "/articles", "/articles/**",
-                        "/tags/hot", "/users/currentUser", "/register",
-                        "/logout", "/comments/article/**", "/comments/create/change");
+        // 添加自定义拦截器，用于处理登录和JWT验证逻辑
+        registry.addInterceptor(loginInterceptor)
+                .addPathPatterns("/**")  // 拦截所有请求
+                .excludePathPatterns("/login**", "/register",
+                        "/articles", "/articles/hot", "/articles/new", "/articles/listArchives",
+                        "/articles/view/**",
+                        "/tags/**",
+                        "/comments/**",
+                        "/categorys/**",
+                        "/users/currentUser");
     }
 }
 ```
-
-> ⚠️ **注意**: 拦截器配置目前被注释掉了，项目中暂时没有启用登录拦截器。
 
 ### 🔒 登录拦截器
 
@@ -169,6 +194,7 @@ public class LoginInterceptor implements HandlerInterceptor {
      * @param response 响应对象
      * @param handler 处理器对象
      * @return true表示继续处理请求，false表示拒绝处理请求
+     * @throws Exception 抛出的异常
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -179,9 +205,11 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 放行所有接口（由于前端存在问题，暂时全部放行）
-        if (uri.startsWith("/") || uri.equals("/register") ||
-            uri.equals("/comments/create/change")) {
+        // 处理一些公开接口，不需要token验证
+        if (uri.equals("/register") ||
+            uri.equals("/login")||
+            uri.equals("/comments/create/change")
+            ) {
             return true;
         }
 
@@ -190,6 +218,14 @@ public class LoginInterceptor implements HandlerInterceptor {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             // 验证JWT token并检查Redis中是否存在对应的用户信息
             String token = authorizationHeader.substring(7);
+            // 检查token是否为空或无效
+            if (StringUtils.isBlank(token)) {
+                response.setContentType("application/json;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg())));
+                return false;
+            }
+            
             Result result = validateJwtTokenAndCheckRedis(token);
             if (result != null) {
                 // token验证失败，返回错误信息
@@ -198,10 +234,17 @@ public class LoginInterceptor implements HandlerInterceptor {
                 return false;
             }
             
-            // 登录成功时，调用loginService.checkToken获取用户信息并存储到UserThreadLocal中
-            SysUser sysUser = loginService.checkToken(token);
-            if (sysUser != null) {
-                UserThreadLocal.put(sysUser);
+            // 登录成功时，从Redis中获取用户信息并存储到UserThreadLocal中
+            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            if (!StringUtils.isBlank(userJson)) {
+                try {
+                    SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
+                    if (sysUser != null) {
+                        UserThreadLocal.put(sysUser);
+                    }
+                } catch (Exception e) {
+                    // 解析用户信息失败，继续执行但不存储用户信息
+                }
             }
 
             // 放行
@@ -226,20 +269,30 @@ public class LoginInterceptor implements HandlerInterceptor {
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 
+        // 检查jwtUtils是否为null
+        if (jwtUtils == null) {
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "JWT工具初始化失败");
+        }
+
         // 验证JWT token
         Map<String, Object> tokenMap = jwtUtils.checkToken(token);
         if (tokenMap == null) {
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 
-        // 检查Redis中是否存在对应的用户信息（验证用户是否已登出）
-        String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
-        if (StringUtils.isBlank(userJson)) {
-            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        // 检查redisTemplate是否为null
+        if (redisTemplate == null) {
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "Redis模板初始化失败");
         }
 
-        // 尝试解析用户信息
+        // 检查Redis中是否存在对应的用户信息（验证用户是否已登出）
         try {
+            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            if (StringUtils.isBlank(userJson)) {
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+            }
+
+            // 尝试解析用户信息
             SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
             if (sysUser == null) {
                 return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
@@ -258,6 +311,7 @@ public class LoginInterceptor implements HandlerInterceptor {
      * @param response 响应对象
      * @param handler 处理器对象
      * @param ex 异常对象
+     * @throws Exception 抛出的异常
      */
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
@@ -398,6 +452,99 @@ CREATE TABLE comment (
 
 1. 使用jwt工具类创建jwt的token令牌
 2. ⚠️ **重要提醒**: 注意直接给数据库插入用户账密数据的时候，回车键也会被插入（找了半个小时，我还以为是加密出错了）
+
+### 3.1 JWT工具类实现
+
+JWT工具类负责生成和验证JWT令牌，是整个认证系统的核心组件。
+
+```java
+@Component
+public class JWTUtils {
+    
+    @Value("${jwt.secret}")
+    private String secret;
+    
+    @Value("${jwt.token-expiration}")
+    private Long expiration;
+    
+    @Value("${jwt.salt}")
+    private String salt;
+
+    /**
+     * 生成JWT token
+     * @param claims 要包含在token中的声明
+     * @return 生成的token字符串
+     */
+    public String generateToken(Map<String, Object> claims) {
+        // 设置过期时间
+        Date expirationDate = new Date(System.currentTimeMillis() + expiration);
+        
+        // 生成token
+        return Jwts.builder()
+                .setClaims(claims)
+                .setExpiration(expirationDate)
+                .signWith(SignatureAlgorithm.HS512, secret)
+                .compact();
+    }
+
+    /**
+     * 验证JWT token
+     * @param token 要验证的token
+     * @return 如果验证成功返回包含声明的Map，否则返回null
+     */
+    public Map<String, Object> checkToken(String token) {
+        try {
+            // 解析token
+            Claims claims = Jwts.parser()
+                    .setSigningKey(secret)
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            // 检查是否过期
+            if (claims.getExpiration().before(new Date())) {
+                return null;
+            }
+            
+            return claims;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * 从token中获取用户ID
+     * @param token JWT token
+     * @return 用户ID
+     */
+    public Long getUserIdFromToken(String token) {
+        Map<String, Object> claims = checkToken(token);
+        if (claims != null) {
+            return Long.valueOf(claims.get("id").toString());
+        }
+        return null;
+    }
+}
+```
+
+### 3.2 JWT配置说明
+
+在 [application.yml](file:///D:/blog_learn/myBlog/blog-parent/blog-api/src/main/resources/application.yml) 中配置JWT相关信息：
+
+```yaml
+# JWT 自定义配置
+jwt:
+  token-expiration: 86400000  # 24小时毫秒数 (24 * 60 * 60 * 1000)
+  secret: zpy_blog            # JWT 密钥
+  salt: zpy_blog              # 加密盐值
+```
+
+### 3.3 JWT使用流程
+
+1. **用户登录**：验证用户名和密码，生成JWT token并返回给前端
+2. **前端存储**：前端将token存储在localStorage或sessionStorage中
+3. **请求携带**：每次请求时在Authorization头中携带token（格式：Bearer token）
+4. **后端验证**：拦截器验证token的有效性和时效性
+5. **用户登出**：从Redis中删除对应的token信息，使token失效
 
 ---
 
@@ -835,8 +982,151 @@ publishArticle(article, this.$store.state.token).then((data) => {
 })
 ```
 
+## 14. 文章删除和修改功能实现 🗑️ ✏️
 
-## 📊 14. AOP日志记录
+### 14.1 功能概述
+
+文章删除和修改功能允许用户对自己发布的文章进行管理操作：
+- **删除文章**：删除指定ID的文章及其相关数据（标签关联、内容、评论等）
+- **修改文章**：获取指定ID文章的详细信息，供前端编辑使用
+
+### 14.2 权限控制
+
+为了确保数据安全，对文章的删除和修改操作进行了严格的权限控制：
+1. 用户必须登录才能执行操作
+2. 只有文章作者或管理员才能删除/修改文章
+3. 通过UserThreadLocal获取当前登录用户信息进行权限验证
+
+### 14.3 后端实现要点
+
+#### 文章删除流程
+1. 验证用户登录状态
+2. 检查用户权限（是否为文章作者或管理员）
+3. 删除文章相关的所有数据：
+   - 删除文章主体内容（article_body表）
+   - 删除文章标签关联（article_tag表）
+   - 删除文章评论（comment表）
+   - 删除文章本身（article表）
+
+#### 文章修改流程
+1. 验证用户登录状态
+2. 检查用户权限（是否为文章作者或管理员）
+3. 查询并返回文章详细信息供前端编辑
+
+#### 关键代码示例
+
+```java
+// 删除文章接口
+@DeleteMapping("/delete/{id}")
+@LogAnnotation(module = "文章", operator = "删除文章")
+public Result delete(@PathVariable("id") Long id) {
+    SysUser currentUser = UserThreadLocal.get();
+    // 用户未登录
+    if (currentUser == null) {
+        return Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg());
+    }
+    
+    // 检查权限
+    Result articleResult = articleService.change(id);
+    if (!articleResult.isSuccess()) {
+        return articleResult;
+    }
+    
+    // 检查文章是否存在
+    if (articleResult.getData() == null) {
+        return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+    }
+    
+    // 检查用户是否有权限删除该文章
+    com.itzpy.blog.dao.pojo.Article article = (com.itzpy.blog.dao.pojo.Article) articleResult.getData();
+    // 检查用户是否是文章作者或者管理员
+    if (!currentUser.getId().equals(article.getAuthorId()) && 
+        (currentUser.getAdmin() == null || currentUser.getAdmin() != 1)) {
+        return Result.fail(ErrorCode.NO_PERMISSION.getCode(), ErrorCode.NO_PERMISSION.getMsg());
+    }
+    
+    return articleService.delete(id);
+}
+
+// 修改文章接口
+@PostMapping("/change/{id}")
+@LogAnnotation(module = "文章", operator = "修改文章")
+public Result change(@PathVariable("id") Long id) {
+    SysUser currentUser = UserThreadLocal.get();
+    // 用户未登录
+    if (currentUser == null) {
+        return Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg());
+    }
+    
+    // 检查权限
+    Result articleResult = articleService.change(id);
+    if (!articleResult.isSuccess()) {
+        return articleResult;
+    }
+    
+    // 检查文章是否存在
+    if (articleResult.getData() == null) {
+        return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+    }
+    
+    // 检查用户是否有权限修改该文章
+    com.itzpy.blog.dao.pojo.Article article = (com.itzpy.blog.dao.pojo.Article) articleResult.getData();
+    // 检查用户是否是文章作者或者管理员
+    if (!currentUser.getId().equals(article.getAuthorId()) && 
+        (currentUser.getAdmin() == null || currentUser.getAdmin() != 1)) {
+        return Result.fail(ErrorCode.NO_PERMISSION.getCode(), ErrorCode.NO_PERMISSION.getMsg());
+    }
+    
+    return articleResult;
+}
+```
+
+#### Service层实现
+
+```java
+@Override
+public Result delete(Long articleId) {
+    // 删除文章相关数据
+    articleMapper.deleteById(articleId);
+    articleBodyMapper.deleteByArticleId(articleId);
+    articleTagMapper.deleteByArticleId(articleId);
+    commentMapper.deleteCommentsByArticleId(articleId);
+    return Result.success(null);
+}
+
+@Override
+public Result change(Long articleId) {
+    // 获取文章详情
+    Article article = articleMapper.selectById(articleId);
+    if (article == null) {
+        return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+    }
+    return Result.success(article);
+}
+```
+
+### 14.4 接口设计
+
+#### 删除文章接口
+- **URL**: `DELETE /articles/delete/{id}`
+- **参数**: 文章ID（路径参数）
+- **返回**: 统一Result格式
+
+#### 修改文章接口
+- **URL**: `POST /articles/change/{id}`
+- **参数**: 文章ID（路径参数）
+- **返回**: 文章详细信息或错误信息
+
+### 14.5 前端集成要点
+
+1. 在文章列表项右下角添加"修改"和"删除"按钮
+2. 点击按钮时弹出确认对话框
+3. 删除操作直接调用删除接口，成功后刷新页面
+4. 修改操作调用修改接口获取文章信息，然后跳转到编辑页面
+
+---
+
+## 📊 15. AOP日志记录
 
 ### 🏷️ 1. 创建日志记录注解
 
@@ -931,7 +1221,7 @@ public Result listArticle(@RequestBody PageParams pageParams) {
 ```
 
 
-## 🖼️ 15. 文章图片上传
+## 🖼️ 16. 文章图片上传
 
 ### 📡 接口信息
 - **URL**: `POST /upload`
@@ -1044,7 +1334,7 @@ qiniu:
 3. 上传成功后返回完整URL，前端可直接使用
 4. 错误处理：当文件名为空或上传失败时会返回相应的错误码
 
-## 🐞 16. 前端路由问题排查
+## 🐞 17. 前端路由问题排查
 
 ### 问题描述
 前端路由出现问题，标签的ID参数无法正确传递到后端，导致查询标签详情的接口在文档中无法体现，但通过Postman测试正常。
