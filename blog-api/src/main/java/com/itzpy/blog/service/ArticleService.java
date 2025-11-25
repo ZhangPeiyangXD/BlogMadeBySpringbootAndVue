@@ -54,4 +54,18 @@ public interface ArticleService {
      * @return Result<articleId>
      */
     Result publish(ArticleParam articleParam);
+    
+    /**
+     * 删除文章
+     * @param articleId 文章ID
+     * @return Result
+     */
+    Result delete(Long articleId);
+    
+    /**
+     * 修改文章
+     * @param articleId 文章ID
+     * @return Result
+     */
+    Result change(Long articleId);
 }

@@ -1,11 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.itzpy.blog.dao.mapper.CommentMapper">
-    <insert id="insertComment" parameterType="com.itzpy.blog.dao.pojo.Comment" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO comment (content, create_date, article_id, author_id, parent_id, to_uid, level)
-        VALUES (#{content}, #{createDate}, #{articleId}, #{authorId}, #{parentId}, #{toUid}, #{level})
-    </insert>
-    
+
     <resultMap id="commentMap" type="com.itzpy.blog.dao.pojo.Comment">
         <id column="id" property="id"/>
         <result column="content" property="content"/>
@@ -16,4 +12,13 @@
         <result column="to_uid" property="toUid"/>
         <result column="level" property="level"/>
     </resultMap>
+
+    <insert id="insertComment" parameterType="com.itzpy.blog.dao.pojo.Comment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comment (content, create_date, article_id, author_id, parent_id, to_uid, level)
+        VALUES (#{content}, #{createDate}, #{articleId}, #{authorId}, #{parentId}, #{toUid}, #{level})
+    </insert>
+    
+    <delete id="deleteCommentsByArticleId" parameterType="long">
+        DELETE FROM comment WHERE article_id = #{articleId}
+    </delete>
 </mapper>

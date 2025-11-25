@@ -6,6 +6,7 @@ import com.itzpy.blog.service.TagService;
 import com.itzpy.blog.dao.pojo.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/tags")
 @Slf4j
 public class TagController {
-    private static final int HOT_TAG_NUM = 6;
+    @Value("${hot.tag.num}")
+    private int HOT_TAG_NUM;
+    
     @Autowired
     private TagService tagService;
 

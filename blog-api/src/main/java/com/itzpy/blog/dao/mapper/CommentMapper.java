@@ -24,4 +24,11 @@ public interface CommentMapper {
      * @return 影响行数
      */
     int insertComment(Comment comment);
+    
+    /**
+     * 根据文章ID删除评论
+     * @param articleId 文章ID
+     * @return 删除的记录数
+     */
+    int deleteCommentsByArticleId(@Param("articleId") Long articleId);
 }

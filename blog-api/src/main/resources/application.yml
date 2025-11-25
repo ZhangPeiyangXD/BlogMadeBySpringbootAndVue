@@ -45,3 +45,8 @@ jwt:
   
 # AuthorId自定义：
 authorId: 1234
+
+# 热门标签数量配置
+hot:
+  tag:
+    num: 6

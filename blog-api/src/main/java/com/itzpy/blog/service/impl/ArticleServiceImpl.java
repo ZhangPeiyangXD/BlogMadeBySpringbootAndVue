@@ -4,15 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.itzpy.blog.dao.dos.Archives;
-import com.itzpy.blog.dao.mapper.ArticleBodyMapper;
-import com.itzpy.blog.dao.mapper.ArticleMapper;
-import com.itzpy.blog.dao.mapper.ArticleTagMapper;
-import com.itzpy.blog.dao.mapper.CategoryMapper;
+import com.itzpy.blog.dao.mapper.*;
 import com.itzpy.blog.dao.pojo.*;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.service.TagService;
 import com.itzpy.blog.service.ThreadService;
+import com.itzpy.blog.utils.UserThreadLocal;
 import com.itzpy.blog.vo.*;
 import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
@@ -46,6 +44,8 @@ public class ArticleServiceImpl implements ArticleService {
     private CategoryMapper categoryMapper;
     @Autowired
     ArticleTagMapper articleTagMapper;
+    @Autowired
+    private CommentMapper commentMapper;
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
@@ -186,9 +186,16 @@ public class ArticleServiceImpl implements ArticleService {
     @Transactional
     @Override
     public Result publish(ArticleParam articleParam) {
+        // 获取当前登录用户
+        SysUser sysUser = UserThreadLocal.get();
+        
         Article article = new Article();
-        // 设置作者id
-        article.setAuthorId(authorId);
+        // 设置作者id为当前登录用户ID，如果未登录则使用默认ID
+        if (sysUser != null) {
+            article.setAuthorId(sysUser.getId());
+        } else {
+            article.setAuthorId(authorId);
+        }
 
         // 插入文章表，获取文章id
         articleMapper.insert(article);
@@ -239,6 +246,26 @@ public class ArticleServiceImpl implements ArticleService {
         Map<String, String> map = new HashMap<>();
         map.put("id", articleId.toString());
         return Result.success(map);
+    }
+
+    @Override
+    public Result delete(Long articleId) {
+        // 删除文章相关数据
+        articleMapper.deleteById(articleId);
+        articleBodyMapper.deleteByArticleId(articleId);
+        articleTagMapper.deleteByArticleId(articleId);
+        commentMapper.deleteCommentsByArticleId(articleId);
+        return Result.success(null);
+    }
+
+    @Override
+    public Result change(Long articleId) {
+        // 获取文章详情
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
+        return Result.success(article);
     }
 
 

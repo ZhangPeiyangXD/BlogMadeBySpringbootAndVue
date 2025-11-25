@@ -20,4 +20,11 @@ public interface ArticleBodyMapper {
     @Options(useGeneratedKeys = true, keyColumn = "id", keyProperty = "id")
     @Insert("insert into article_body (article_id, content,content_html) values (#{articleId}, #{content},#{contentHtml})")
     void insert(ArticleBody articleBody);
+    
+    /**
+     * 根据文章ID删除文章内容
+     * @param articleId 文章ID
+     * @return 删除的记录数
+     */
+    int deleteByArticleId(Long articleId);
 }

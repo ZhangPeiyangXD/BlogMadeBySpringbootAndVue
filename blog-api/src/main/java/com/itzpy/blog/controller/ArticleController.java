@@ -5,9 +5,11 @@ import com.alibaba.fastjson.spi.Module;
 import com.itzpy.blog.aop.LogAnnotation;
 import com.itzpy.blog.dao.pojo.ArticleMessage;
 import com.itzpy.blog.dao.pojo.ErrorCode;
+import com.itzpy.blog.dao.pojo.SysUser;
 import com.itzpy.blog.service.ArticleService;
 import com.itzpy.blog.utils.UserThreadLocal;
 import com.itzpy.blog.dao.pojo.Result;
+import com.itzpy.blog.service.SysUserService;
 import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,9 @@ import org.springframework.web.bind.annotation.*;
 public class ArticleController {
     @Autowired
     private ArticleService articleService;
+    
+    @Autowired
+    private SysUserService sysUserService;
 
     /**
      * 首页 文章列表
@@ -94,5 +99,77 @@ public class ArticleController {
     @LogAnnotation(module = "文章", operator = "文章发布")
     public Result publish(@RequestBody ArticleParam articleParam) {
         return articleService.publish(articleParam);
+    }
+    
+    /**
+     * 删除文章
+     * @param id 文章ID
+     * @return result
+     */
+    @DeleteMapping("/delete/{id}")
+    @LogAnnotation(module = "文章", operator = "删除文章")
+    public Result delete(@PathVariable("id") Long id) {
+        SysUser currentUser = UserThreadLocal.get();
+        // 用户未登录
+        if (currentUser == null) {
+            return Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg());
+        }
+        
+        // 检查权限
+        Result articleResult = articleService.change(id);
+        if (!articleResult.isSuccess()) {
+            return articleResult;
+        }
+        
+        // 检查文章是否存在
+        if (articleResult.getData() == null) {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
+        
+        // 检查用户是否有权限删除该文章
+        com.itzpy.blog.dao.pojo.Article article = (com.itzpy.blog.dao.pojo.Article) articleResult.getData();
+        // 检查用户是否是文章作者或者管理员
+        if (!currentUser.getId().equals(article.getAuthorId()) && 
+            (currentUser.getAdmin() == null || currentUser.getAdmin() != 1)) {
+            return Result.fail(ErrorCode.NO_PERMISSION.getCode(), ErrorCode.NO_PERMISSION.getMsg());
+        }
+        
+        return articleService.delete(id);
+    }
+    
+    /**
+     * 修改文章（获取文章内容）
+     * @param id 文章ID
+     * @return result
+     */
+    @PostMapping("/change/{id}")
+    @LogAnnotation(module = "文章", operator = "修改文章")
+    public Result change(@PathVariable("id") Long id) {
+        SysUser currentUser = UserThreadLocal.get();
+        // 用户未登录
+        if (currentUser == null) {
+            return Result.fail(ErrorCode.NO_LOGIN.getCode(), ErrorCode.NO_LOGIN.getMsg());
+        }
+        
+        // 检查权限
+        Result articleResult = articleService.change(id);
+        if (!articleResult.isSuccess()) {
+            return articleResult;
+        }
+        
+        // 检查文章是否存在
+        if (articleResult.getData() == null) {
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), ErrorCode.PARAMS_ERROR.getMsg());
+        }
+        
+        // 检查用户是否有权限修改该文章
+        com.itzpy.blog.dao.pojo.Article article = (com.itzpy.blog.dao.pojo.Article) articleResult.getData();
+        // 检查用户是否是文章作者或者管理员
+        if (!currentUser.getId().equals(article.getAuthorId()) && 
+            (currentUser.getAdmin() == null || currentUser.getAdmin() != 1)) {
+            return Result.fail(ErrorCode.NO_PERMISSION.getCode(), ErrorCode.NO_PERMISSION.getMsg());
+        }
+        
+        return articleResult;
     }
 }
