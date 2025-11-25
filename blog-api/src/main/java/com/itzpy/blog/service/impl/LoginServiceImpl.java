@@ -82,6 +82,11 @@ public class LoginServiceImpl implements LoginService {
             return null;
         }
 
+        // 检查jwtUtils是否为null
+        if (jwtUtils == null) {
+            return null;
+        }
+
         Map<String, Object> stringObjectMap = jwtUtils.checkToken(token);
         if(stringObjectMap == null){
             return null;

@@ -30,6 +30,7 @@ public class WebMVCConfig implements WebMvcConfigurer {
                         "/articles/view/**",
                         "/tags/**",
                         "/comments/**",
-                        "/categorys/**");
+                        "/categorys/**",
+                        "/users/currentUser");
     }
 }

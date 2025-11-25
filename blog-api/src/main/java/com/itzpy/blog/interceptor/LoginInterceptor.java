@@ -46,7 +46,7 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 这个项目前端做的真是傻逼, jwt拿不到，token取不到。还一堆私人bug。我自己改了一下前端请求头格式。
+        // 处理一些公开接口，不需要token验证
         if (uri.equals("/register") ||
             uri.equals("/login")||
             uri.equals("/comments/create/change")
@@ -59,6 +59,14 @@ public class LoginInterceptor implements HandlerInterceptor {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             // 验证JWT token并检查Redis中是否存在对应的用户信息
             String token = authorizationHeader.substring(7);
+            // 检查token是否为空或无效
+            if (StringUtils.isBlank(token)) {
+                response.setContentType("application/json;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg())));
+                return false;
+            }
+            
             Result result = validateJwtTokenAndCheckRedis(token);
             if (result != null) {
                 // token验证失败，返回错误信息

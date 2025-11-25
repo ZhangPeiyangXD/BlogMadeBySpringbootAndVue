@@ -4,7 +4,6 @@ import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import org.jasypt.util.text.BasicTextEncryptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,16 +22,22 @@ public class JWTUtils {
     @Value("${jwt.token-expiration}")
     private Long tokenExpiration;
 
-    private static String staticJwtToken;
-    private static Long staticTokenExpiration;
+    private String staticJwtToken;
+    private Long staticTokenExpiration;
 
     @PostConstruct
     public void init() {
         staticJwtToken = jwtToken;
         staticTokenExpiration = tokenExpiration;
+        System.out.println("JWT Secret initialized: " + staticJwtToken);
     }
 
+
     public String createToken(Long userId){
+        if (staticJwtToken == null || staticJwtToken.isEmpty()) {
+            throw new IllegalStateException("JWT secret key is not initialized properly");
+        }
+        
         Map<String,Object> claims = new HashMap<>();
         claims.put("userId",userId);
         JwtBuilder jwtBuilder = Jwts.builder()
@@ -46,25 +51,16 @@ public class JWTUtils {
 
     public Map<String, Object> checkToken(String token){
         try {
+            if (staticJwtToken == null || staticJwtToken.isEmpty()) {
+                throw new IllegalStateException("JWT secret key is not initialized properly");
+            }
+            
             Jwt parse = Jwts.parser().setSigningKey(staticJwtToken).parse(token);
             return (Map<String, Object>) parse.getBody();
         }catch (Exception e){
+            System.err.println("JWT解析失败，密钥：" + staticJwtToken);
             e.printStackTrace();
         }
         return null;
-
     }
-
-    public static void main(String[] args) {
-        BasicTextEncryptor textEncryptor = new BasicTextEncryptor();
-        //加密所需的salt
-        textEncryptor.setPassword("mszlu_blog_$#@wzb_&^%$#");
-        //要加密的数据（数据库的用户名或密码）
-        String username = textEncryptor.encrypt("root");
-        String password = textEncryptor.encrypt("root");
-        System.out.println("username:"+username);
-        System.out.println("password:"+password);
-        System.out.println(textEncryptor.decrypt("29cZ+X9cNmECjbLXT2P/BBZWReVl30NS"));
-    }
-
 }

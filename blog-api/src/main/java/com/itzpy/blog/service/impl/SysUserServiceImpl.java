@@ -98,25 +98,40 @@ public class SysUserServiceImpl implements SysUserService {
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 
-        Map<String, Object> stringObjectMap = jwtUtils.checkToken(token);
-        if(stringObjectMap == null){
-            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        // 检查jwtUtils是否为null
+        if (jwtUtils == null) {
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "JWT工具初始化失败");
         }
 
-        String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
-        if(StringUtils.isBlank(userJson)){
-            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        try {
+            Map<String, Object> stringObjectMap = jwtUtils.checkToken(token);
+            if(stringObjectMap == null){
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+            }
+
+            // 检查redisTemplate是否为null
+            if (redisTemplate == null) {
+                return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "Redis模板初始化失败");
+            }
+
+            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            if(StringUtils.isBlank(userJson)){
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+            }
+
+            SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
+            
+            LoginUserVo loginUserVo = new LoginUserVo();
+            loginUserVo.setId(sysUser.getId().toString());
+            loginUserVo.setNickname(sysUser.getNickname());
+            loginUserVo.setAvatar(sysUser.getAvatar());
+            loginUserVo.setAccount(sysUser.getAccount());
+
+            return Result.success(loginUserVo);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token解析失败: " + e.getMessage());
         }
-
-        SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
-        
-        LoginUserVo loginUserVo = new LoginUserVo();
-        loginUserVo.setId(sysUser.getId().toString());
-        loginUserVo.setNickname(sysUser.getNickname());
-        loginUserVo.setAvatar(sysUser.getAvatar());
-        loginUserVo.setAccount(sysUser.getAccount());
-
-        return Result.success(loginUserVo);
     }
 
 }
