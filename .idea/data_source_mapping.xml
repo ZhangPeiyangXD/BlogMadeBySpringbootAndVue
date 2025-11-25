@@ -2,6 +2,7 @@
 <project version="4">
   <component name="DataSourcePerFileMappings">
     <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/d8417473-ab7a-4889-9bae-3a0e21bdad0a/console.sql" value="d8417473-ab7a-4889-9bae-3a0e21bdad0a" />
+    <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/d8417473-ab7a-4889-9bae-3a0e21bdad0a/console_1.sql" value="d8417473-ab7a-4889-9bae-3a0e21bdad0a" />
     <file url="file://$PROJECT_DIR$/blog-admin/src/main/java/com/itzpy/blog/admin/mapper/AdminMapper.java" value="d8417473-ab7a-4889-9bae-3a0e21bdad0a" />
     <file url="file://$PROJECT_DIR$/blog-api/src/main/java/com/itzpy/blog/dao/mapper/ArticleMapper.java" value="d8417473-ab7a-4889-9bae-3a0e21bdad0a" />
     <file url="file://$PROJECT_DIR$/blog-api/src/main/java/com/itzpy/blog/dao/mapper/CommentMapper.java" value="d8417473-ab7a-4889-9bae-3a0e21bdad0a" />

@@ -18,20 +18,30 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new BCryptPasswordEncoder();
     }
 
-    public static void main(String[] args) {
+/*    public static void main(String[] args) {
         //加密策略 MD5 不安全 彩虹表  MD5 加盐
-        String mszlu = new BCryptPasswordEncoder().encode("mszlu");
+        String mszlu = new BCryptPasswordEncoder().encode("123456");
         System.out.println(mszlu);
     }
+    */
+
     @Override
     public void configure(WebSecurity web) throws Exception {
-        super.configure(web);
+        // 静态资源忽略安全控制
+        web.ignoring()
+                .antMatchers("/css/**")
+                .antMatchers("/js/**")
+                .antMatchers("/img/**")
+                .antMatchers("/plugins/**")
+                .antMatchers("/favicon.ico");
     }
+    
     @Override
     protected void configure(HttpSecurity http) throws Exception {
 
         http.authorizeRequests() //开启登录认证
 //                .antMatchers("/user/findAll").hasRole("admin") //访问接口需要admin的角色
+                .antMatchers("/login.html").permitAll() // 登录页面允许所有人访问
                 .antMatchers("/css/**").permitAll()
                 .antMatchers("/img/**").permitAll()
                 .antMatchers("/js/**").permitAll()

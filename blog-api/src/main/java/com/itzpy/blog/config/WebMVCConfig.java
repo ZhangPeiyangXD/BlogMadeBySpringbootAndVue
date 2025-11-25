@@ -19,15 +19,17 @@ public class WebMVCConfig implements WebMvcConfigurer {
     }
 
 
-/*
     //添加自定义拦截器，用于处理登录和JWT验证逻辑
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // 添加自定义拦截器，用于处理登录和JWT验证逻辑
         registry.addInterceptor(new LoginInterceptor())
                 .addPathPatterns("/**")  // 拦截所有请求
-                .excludePathPatterns("/login**", "/articles", "/articles/**",
-                        "/tags/hot", "/users/currentUser", "/register",
-                        "/logout", "/comments/article/**");
-    }*/
+                .excludePathPatterns("/login**", "/register",
+                        "/articles", "/articles/hot", "/articles/new", "/articles/listArchives",
+                        "/articles/view/**",
+                        "/tags/**",
+                        "/comments/**",
+                        "/categorys/**");
+    }
 }

@@ -46,9 +46,11 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 放行所有接口，这个项目前端做的真是傻逼。jwt拿不到，token取不到。还一堆私人bug
-        if (uri.startsWith("/") || uri.equals("/register") ||
-            uri.equals("/comments/create/change")) {
+        // 这个项目前端做的真是傻逼, jwt拿不到，token取不到。还一堆私人bug。我自己改了一下前端请求头格式。
+        if (uri.equals("/register") ||
+            uri.equals("/login")||
+            uri.equals("/comments/create/change")
+            ) {
             return true;
         }
 
@@ -65,10 +67,17 @@ public class LoginInterceptor implements HandlerInterceptor {
                 return false;
             }
             
-            // 登录成功时，调用loginService.checkToken获取用户信息并存储到UserThreadLocal中
-            SysUser sysUser = loginService.checkToken(token);
-            if (sysUser != null) {
-                UserThreadLocal.put(sysUser);
+            // 登录成功时，从Redis中获取用户信息并存储到UserThreadLocal中
+            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            if (!StringUtils.isBlank(userJson)) {
+                try {
+                    SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
+                    if (sysUser != null) {
+                        UserThreadLocal.put(sysUser);
+                    }
+                } catch (Exception e) {
+                    // 解析用户信息失败，继续执行但不存储用户信息
+                }
             }
 
             // 放行
@@ -93,20 +102,30 @@ public class LoginInterceptor implements HandlerInterceptor {
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 
+        // 检查jwtUtils是否为null
+        if (jwtUtils == null) {
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "JWT工具初始化失败");
+        }
+
         // 验证JWT token
         Map<String, Object> tokenMap = jwtUtils.checkToken(token);
         if (tokenMap == null) {
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 
-        // 检查Redis中是否存在对应的用户信息（验证用户是否已登出）
-        String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
-        if (StringUtils.isBlank(userJson)) {
-            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+        // 检查redisTemplate是否为null
+        if (redisTemplate == null) {
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "Redis模板初始化失败");
         }
 
-        // 尝试解析用户信息
+        // 检查Redis中是否存在对应的用户信息（验证用户是否已登出）
         try {
+            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            if (StringUtils.isBlank(userJson)) {
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+            }
+
+            // 尝试解析用户信息
             SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
             if (sysUser == null) {
                 return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());

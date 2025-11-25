@@ -28,5 +28,4 @@ public class LoginController {
     public Result login(@RequestBody LoginParam loginParam){
         return loginService.login(loginParam);
     }
-
 }
