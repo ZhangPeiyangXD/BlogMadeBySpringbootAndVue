@@ -89,7 +89,7 @@ public class SysUserServiceImpl implements SysUserService {
     public Result findUserByToken(String token) {
         /**
          *  1.校验 token合法性：
-         *      是否为空，解析是否成功，redis是否存在
+         *      是否为空，redis是否存在
          *  2.如果校验失败，返回错误
          *  3.如果成功，返回LoginUserVo
          */
@@ -98,17 +98,7 @@ public class SysUserServiceImpl implements SysUserService {
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 
-        // 检查jwtUtils是否为null
-        if (jwtUtils == null) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "JWT工具初始化失败");
-        }
-
         try {
-            Map<String, Object> stringObjectMap = jwtUtils.checkToken(token);
-            if(stringObjectMap == null){
-                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
-            }
-
             // 检查redisTemplate是否为null
             if (redisTemplate == null) {
                 return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "Redis模板初始化失败");
