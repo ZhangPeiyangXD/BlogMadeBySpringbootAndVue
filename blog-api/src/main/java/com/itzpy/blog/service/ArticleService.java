@@ -2,8 +2,11 @@ package com.itzpy.blog.service;
 
 
 import com.itzpy.blog.dao.pojo.Result;
+import com.itzpy.blog.vo.HotArticleVo;
 import com.itzpy.blog.vo.params.ArticleParam;
 import com.itzpy.blog.vo.params.PageParams;
+
+import java.util.List;
 
 public interface ArticleService {
     static int HOT_ARTICLE_NUM = 5;
@@ -68,4 +71,11 @@ public interface ArticleService {
      * @return Result
      */
     Result change(Long articleId);
+    
+    /**
+     * 搜索文章
+     * @param search 搜索关键词
+     * @return 搜索结果
+     */
+    List<HotArticleVo> searchArticles(String search);
 }

@@ -75,5 +75,11 @@
     </where>
     order by weight,create_date desc
   </select>
+  
+  <select id="searchArticles" resultType="com.itzpy.blog.vo.HotArticleVo">
+    select id, title from article 
+    where title like concat('%', #{search}, '%') 
+    limit 5
+  </select>
 
 </mapper>

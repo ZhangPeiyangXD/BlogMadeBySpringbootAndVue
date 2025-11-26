@@ -268,6 +268,23 @@ public class ArticleServiceImpl implements ArticleService {
         return Result.success(article);
     }
 
+    @Override
+    public List<HotArticleVo> searchArticles(String search) {
+        LambdaQueryWrapper<Article> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.like(Article::getTitle, search);
+        queryWrapper.last("LIMIT 5");
+        List<Article> articles = articleMapper.selectList(queryWrapper);
+        
+        List<HotArticleVo> articleVos = new ArrayList<>();
+        for (Article article : articles) {
+            HotArticleVo hotArticleVo = new HotArticleVo();
+            hotArticleVo.setId(article.getId());
+            hotArticleVo.setTitle(article.getTitle());
+            articleVos.add(hotArticleVo);
+        }
+        return articleVos;
+    }
+
 
     /**
      * 将list<article>转换成vo list<articleVo>

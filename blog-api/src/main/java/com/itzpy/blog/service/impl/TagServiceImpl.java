@@ -9,10 +9,13 @@ import com.itzpy.blog.vo.TagVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class TagServiceImpl implements TagService {
@@ -31,6 +34,14 @@ public class TagServiceImpl implements TagService {
         // tag是标签表。再通过标签id查询标签详细信息
 
         List<Tag> tags = tagMapper.findTagsByArticleId(articleId);
+        
+        // 过滤掉null值和属性全为null的对象
+        if (tags != null) {
+            tags = tags.stream()
+                    .filter(Objects::nonNull)
+                    .filter(tag -> tag.getId() != null) // 至少id不为null才认为是有效对象
+                    .collect(Collectors.toList());
+        }
 
         return copyList(tags);
     }
@@ -89,10 +100,15 @@ public class TagServiceImpl implements TagService {
      * @return List<TagVo> 拷贝后的标签列表
      */
     private List<TagVo> copyList(List<Tag> tags) {
-        List<TagVo> tagVoList = new ArrayList<>();
-        tags.forEach(tag -> tagVoList.add(copy(tag)));
-
-        return tagVoList;
+        if (tags == null) {
+            return new ArrayList<>();
+        }
+        
+        return tags.stream()
+                .filter(Objects::nonNull)
+                .map(this::copy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
 
@@ -102,8 +118,18 @@ public class TagServiceImpl implements TagService {
      * @return TagVo 拷贝后的标签
      */
     private TagVo copy(Tag tag) {
+        // 检查tag是否为null或者无效对象
+        if (tag == null || tag.getId() == null) {
+            return null;
+        }
+        
         TagVo tagVo = new TagVo();
-        BeanUtils.copyProperties(tag, tagVo);
+        try {
+            BeanUtils.copyProperties(tag, tagVo);
+        } catch (Exception e) {
+            // 如果拷贝过程中出现任何异常，返回null
+            return null;
+        }
         return tagVo;
     }
 }
