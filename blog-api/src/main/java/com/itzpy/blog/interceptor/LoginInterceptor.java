@@ -76,16 +76,72 @@ public class LoginInterceptor implements HandlerInterceptor {
             }
             
             // 登录成功时，从Redis中获取用户信息并存储到UserThreadLocal中
-            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            String userJson = null;
+            try {
+                userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            } catch (Exception e) {
+                // Redis操作异常
+                e.printStackTrace();
+                response.setContentType("application/json;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "系统繁忙，请稍后重试")));
+                return false;
+            }
+            
             if (!StringUtils.isBlank(userJson)) {
                 try {
-                    SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
-                    if (sysUser != null) {
+                    // 检查JSON字符串长度
+                    if (userJson.length() > 10000) {
+                        // 删除这个可能有问题的key
+                        redisTemplate.delete("TOKEN_" + token);
+                        response.setContentType("application/json;charset=utf-8");
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token数据异常，请重新登录")));
+                        return false;
+                    }
+                    
+                    // 只解析需要的字段
+                    Map<String, Object> userMap = JSON.parseObject(userJson, Map.class);
+                    if (userMap != null && userMap.containsKey("id")) {
+                        SysUser sysUser = new SysUser();
+                        sysUser.setId(Long.valueOf(String.valueOf(userMap.get("id"))));
+                        sysUser.setNickname((String) userMap.get("nickname"));
+                        sysUser.setAvatar((String) userMap.get("avatar"));
+                        sysUser.setAccount((String) userMap.get("account"));
                         UserThreadLocal.put(sysUser);
+                    } else {
+                        response.setContentType("application/json;charset=utf-8");
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token数据格式错误，请重新登录")));
+                        return false;
                     }
                 } catch (Exception e) {
                     // 解析用户信息失败，继续执行但不存储用户信息
+                    e.printStackTrace();
+                    response.setContentType("application/json;charset=utf-8");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token解析失败，请重新登录")));
+                    return false;
+                } catch (OutOfMemoryError e) {
+                    // 特别处理内存溢出错误
+                    System.err.println("内存溢出错误: " + e.getMessage());
+                    e.printStackTrace();
+                    // 清理可能的异常数据
+                    try {
+                        redisTemplate.delete("TOKEN_" + token);
+                    } catch (Exception ex) {
+                        // 忽略清理异常
+                    }
+                    response.setContentType("application/json;charset=utf-8");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token数据异常，请重新登录")));
+                    return false;
                 }
+            } else {
+                response.setContentType("application/json;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().print(JSON.toJSONString(Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "登录已过期，请重新登录")));
+                return false;
             }
 
             // 放行
@@ -128,17 +184,50 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         // 检查Redis中是否存在对应的用户信息（验证用户是否已登出）
         try {
-            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            String key = "TOKEN_" + token;
+            // 先检查key是否存在
+            if (!redisTemplate.hasKey(key)) {
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
+            }
+
+            // 获取value长度，防止过大的value导致OOM
+            Long valueLength = redisTemplate.boundValueOps(key).size();
+            if (valueLength == null || valueLength > 10000) { // 限制10KB
+                // 删除这个可能有问题的key
+                redisTemplate.delete(key);
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token数据异常");
+            }
+
+            String userJson = redisTemplate.opsForValue().get(key);
             if (StringUtils.isBlank(userJson)) {
                 return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
             }
 
-            // 尝试解析用户信息
-            SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
-            if (sysUser == null) {
+            // 检查JSON字符串长度
+            if (userJson.length() > 10000) {
+                // 删除这个可能有问题的key
+                redisTemplate.delete(key);
+                return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token数据过大");
+            }
+
+            // 尝试解析用户信息，只检查必要字段
+            Map<String, Object> userMap = JSON.parseObject(userJson, Map.class);
+            if (userMap == null || !userMap.containsKey("id")) {
                 return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
             }
+        } catch (OutOfMemoryError e) {
+            // 特别处理内存溢出错误
+            System.err.println("内存溢出错误: " + e.getMessage());
+            e.printStackTrace();
+            // 清理可能的异常数据
+            try {
+                redisTemplate.delete("TOKEN_" + token);
+            } catch (Exception ex) {
+                // 忽略清理异常
+            }
+            return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), "Token数据异常，请重新登录");
         } catch (Exception e) {
+            e.printStackTrace();
             return Result.fail(ErrorCode.TOKEN_ERROR.getCode(), ErrorCode.TOKEN_ERROR.getMsg());
         }
 

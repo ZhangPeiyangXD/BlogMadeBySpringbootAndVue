@@ -15,7 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class LoginServiceImpl implements LoginService {
@@ -64,8 +66,21 @@ public class LoginServiceImpl implements LoginService {
         // 3.如果存在，生成jwt的token
         String token = jwtUtils.createToken(sysUser.getId());
 
-        // 4.存储token到redis中（token: user），expireTime天过期，重新登录.
-        redisTemplate.opsForValue().set("TOKEN_" + token, JSON.toJSONString(sysUser), tokenExpiration);
+        // 4.存储精简的用户信息到redis中（token: user），expireTime天过期，重新登录.
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", sysUser.getId());
+        userInfo.put("account", sysUser.getAccount());
+        userInfo.put("nickname", sysUser.getNickname());
+        userInfo.put("avatar", sysUser.getAvatar());
+        
+        try {
+            // 存储到Redis并设置过期时间
+            redisTemplate.opsForValue().set("TOKEN_" + token, JSON.toJSONString(userInfo), tokenExpiration, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            // Redis存储失败
+            e.printStackTrace();
+            return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "系统繁忙，请稍后重试");
+        }
 
         return Result.success(token);
     }
@@ -92,12 +107,44 @@ public class LoginServiceImpl implements LoginService {
             return null;
         }
 
-        String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
-        if(StringUtils.isBlank(userJson)){
+        try {
+            String userJson = redisTemplate.opsForValue().get("TOKEN_" + token);
+            if(StringUtils.isBlank(userJson)){
+                return null;
+            }
+
+            // 检查JSON字符串长度
+            if (userJson.length() > 10000) {
+                // 删除这个可能有问题的key
+                redisTemplate.delete("TOKEN_" + token);
+                return null;
+            }
+
+            // 解析精简的用户信息
+            Map<String, Object> userInfo = JSON.parseObject(userJson, Map.class);
+            if (userInfo != null && userInfo.containsKey("id")) {
+                SysUser sysUser = new SysUser();
+                sysUser.setId(Long.valueOf(String.valueOf(userInfo.get("id"))));
+                sysUser.setAccount((String) userInfo.get("account"));
+                sysUser.setNickname((String) userInfo.get("nickname"));
+                sysUser.setAvatar((String) userInfo.get("avatar"));
+                return sysUser;
+            }
+        } catch (Exception e) {
+            // Redis操作或JSON解析异常
+            e.printStackTrace();
+            return null;
+        } catch (OutOfMemoryError e) {
+            // 特别处理内存溢出错误
+            System.err.println("内存溢出错误: " + e.getMessage());
+            // 清理可能的异常数据
+            try {
+                redisTemplate.delete("TOKEN_" + token);
+            } catch (Exception ex) {
+                // 忽略清理异常
+            }
             return null;
         }
-
-        SysUser sysUser = JSON.parseObject(userJson, SysUser.class);
-        return sysUser;
+        return null;
     }
 }

@@ -17,8 +17,10 @@ public class Md5Test {
     }
 
 
+    @Test
     public void test1() {
        String password =  DigestUtils.md5Hex(123456 +  salt);
        System.out.println(password);
+       //e10adc3949ba59abbe56e057f20f883e
     }
 }

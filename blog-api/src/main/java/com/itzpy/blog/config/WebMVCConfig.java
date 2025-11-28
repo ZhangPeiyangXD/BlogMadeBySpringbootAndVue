@@ -17,7 +17,8 @@ public class WebMVCConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         // 跨域配置
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:8080")
+                //.allowedOrigins("http://zpyzpy.top")
+                .allowedOrigins("http://localhost:8080","http://8.134.187.7:8080")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
